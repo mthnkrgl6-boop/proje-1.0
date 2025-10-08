@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Proje Yönetim Platformu</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand__logo">K</span>
+      <div class="brand__text">
+        <h1>Kalde</h1>
+        <p>Proje Departmanı</p>
+      </div>
+    </div>
+    <nav class="main-nav">
+      <button class="nav-link active" data-target="project-pool">Proje Veri Havuzu</button>
+      <button class="nav-link" data-target="project-detail">Proje Bilgi</button>
+      <button class="nav-link" data-target="construction-detail">İnşaat Firma Detay</button>
+      <button class="nav-link" data-target="mechanical-detail">Mekanik Firma Detay</button>
+      <button class="nav-link" data-target="assignments">Atamalar</button>
+      <button class="nav-link" data-target="requests">Talepler</button>
+    </nav>
+    <button class="primary-btn" id="newRecordBtn">Yeni Kayıt Ekle</button>
+  </header>
+
+  <main>
+    <section class="dashboard" data-view="project-pool">
+      <div class="search-panel">
+        <label>
+          <span>Proje Arayın</span>
+          <input type="search" id="projectSearch" placeholder="Proje adı, il veya kategori" />
+        </label>
+        <label>
+          <span>İnşaat Firma Arayın</span>
+          <input type="search" id="constructionSearch" placeholder="Firma adı" />
+        </label>
+        <label>
+          <span>Mekanik Firma Arayın</span>
+          <input type="search" id="mechanicalSearch" placeholder="Firma adı" />
+        </label>
+      </div>
+
+      <div class="info-cards">
+        <article class="info-card" data-category="TOKİ">
+          <h2>TOKİ</h2>
+          <p>Toplu Konut İdaresi Başkanlığı projeleri</p>
+          <span class="info-card__count" id="tokiCount">0</span>
+        </article>
+        <article class="info-card" data-category="Emlak Konut">
+          <h2>Emlak Konut</h2>
+          <p>Emlak Konut GYO kapsamındaki projeler</p>
+          <span class="info-card__count" id="emlakCount">0</span>
+        </article>
+        <article class="info-card" data-category="Özel">
+          <h2>Özel Projeler</h2>
+          <p>Özel sektör ve müteahhit projeleri</p>
+          <span class="info-card__count" id="privateCount">0</span>
+        </article>
+        <article class="info-card" data-category="Kamu">
+          <h2>Diğer Kamu</h2>
+          <p>Belediye ve kamu kurum projeleri</p>
+          <span class="info-card__count" id="publicCount">0</span>
+        </article>
+      </div>
+
+      <section class="table-wrapper">
+        <header class="section-header">
+          <h2>Proje Veri Havuzu</h2>
+          <div class="legend">
+            <span><span class="legend-dot direct"></span>Doğrudan</span>
+            <span><span class="legend-dot dealer"></span>Bayi</span>
+          </div>
+        </header>
+        <table>
+          <thead>
+            <tr>
+              <th>İşlem</th>
+              <th>Eklenme Tarihi</th>
+              <th>Son İşlem Tarihi</th>
+              <th>Kategori</th>
+              <th>İl</th>
+              <th>Proje Adı</th>
+              <th>Yüklenici</th>
+              <th>Mekanik Yüklenici</th>
+              <th>Satış</th>
+              <th>Proje Sorumlusu</th>
+            </tr>
+          </thead>
+          <tbody id="projectTableBody"></tbody>
+        </table>
+      </section>
+    </section>
+
+    <section class="dashboard hidden" data-view="project-detail">
+      <div class="detail-grid">
+        <section class="detail-card">
+          <header class="detail-header">
+            <div>
+              <h2>Proje Bilgi</h2>
+              <p class="muted">Projeleri tek noktadan yönetin, bilgileri güncelleyin.</p>
+            </div>
+            <div class="detail-actions">
+              <label class="detail-actions__select">
+                <span>Proje Seç</span>
+                <select id="projectSelector"></select>
+              </label>
+              <button class="ghost-btn" id="newProjectBtn">Yeni</button>
+              <button class="ghost-btn" id="editProjectBtn">Düzenle</button>
+              <button class="ghost-btn danger" id="deleteProjectBtn">Sil</button>
+            </div>
+          </header>
+          <dl id="projectInfo" class="detail-list"></dl>
+          <form id="projectForm" class="edit-form hidden">
+            <input type="hidden" name="originalId" />
+            <div class="edit-form__grid">
+              <label>
+                <span>Proje Kodu</span>
+                <input type="text" name="projectId" required />
+              </label>
+              <label>
+                <span>Proje Adı</span>
+                <input type="text" name="projectName" required />
+              </label>
+              <label>
+                <span>Kategori</span>
+                <select name="projectCategory" required>
+                  <option value="">Seçin</option>
+                  <option value="TOKİ">TOKİ</option>
+                  <option value="Emlak Konut">Emlak Konut</option>
+                  <option value="Özel">Özel</option>
+                  <option value="Kamu">Kamu</option>
+                </select>
+              </label>
+              <label>
+                <span>İl</span>
+                <input type="text" name="projectCity" required />
+              </label>
+              <label>
+                <span>Eklenme Tarihi</span>
+                <input type="date" name="addedAt" />
+              </label>
+              <label>
+                <span>Son Güncelleme</span>
+                <input type="date" name="updatedAt" />
+              </label>
+              <label>
+                <span>Yüklenici</span>
+                <input type="text" name="contractor" />
+              </label>
+              <label>
+                <span>Mekanik Yüklenici</span>
+                <input type="text" name="mechanical" />
+              </label>
+              <label>
+                <span>Satış Durumu</span>
+                <input type="text" name="salesStatus" />
+              </label>
+              <label>
+                <span>Proje Sorumlusu</span>
+                <input type="text" name="manager" />
+              </label>
+              <label>
+                <span>Bağlantı Türü</span>
+                <select name="channel">
+                  <option value="direct">Doğrudan</option>
+                  <option value="dealer">Bayi</option>
+                </select>
+              </label>
+              <label>
+                <span>Bayi / Kanal</span>
+                <input type="text" name="channelName" />
+              </label>
+              <label class="full-width">
+                <span>Kapsam</span>
+                <textarea name="scope" rows="2"></textarea>
+              </label>
+              <label>
+                <span>Sorumlu Kurum</span>
+                <input type="text" name="responsibleInstitution" />
+              </label>
+              <label>
+                <span>Atanan Ekip</span>
+                <input type="text" name="assignedTeam" />
+              </label>
+              <label class="full-width">
+                <span>İlerleme Notu</span>
+                <textarea name="progress" rows="2"></textarea>
+              </label>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn" data-role="submit">Kaydet</button>
+              <button type="button" class="ghost-btn" data-action="cancel-project">İptal</button>
+            </div>
+          </form>
+          <div class="upload-box">
+            <p>Ürün ve proje belgelerini buraya sürükleyin</p>
+            <button class="ghost-btn">Belge Yükle</button>
+          </div>
+        </section>
+
+        <section class="detail-card">
+          <header>
+            <h2>Ürün ve Finans Durumu</h2>
+          </header>
+          <table class="mini-table">
+            <thead>
+              <tr>
+                <th>İşlem</th>
+                <th>Ürün Grubu</th>
+                <th>Teklif Tutarı</th>
+                <th>Tahsilat</th>
+                <th>Marka</th>
+              </tr>
+            </thead>
+            <tbody id="productTableBody"></tbody>
+            <tfoot>
+              <tr>
+                <th></th>
+                <th>Toplam</th>
+                <th id="offerTotal">-</th>
+                <th id="paymentTotal">-</th>
+                <th></th>
+              </tr>
+            </tfoot>
+          </table>
+          <form id="productForm" class="mini-form">
+            <input type="hidden" name="productId" />
+            <div class="mini-form__grid">
+              <label>
+                <span>Ürün Grubu</span>
+                <input type="text" name="group" required />
+              </label>
+              <label>
+                <span>Teklif</span>
+                <input type="number" name="offer" min="0" step="1000" />
+              </label>
+              <label>
+                <span>Tahsilat</span>
+                <input type="number" name="payment" min="0" step="1000" />
+              </label>
+              <label>
+                <span>Marka</span>
+                <input type="text" name="brand" />
+              </label>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn" data-role="submit">Ürün Kaydet</button>
+              <button type="button" class="ghost-btn" data-action="cancel-product">İptal</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="detail-card full-row">
+          <header>
+            <h2>İletişim ve Süreç</h2>
+          </header>
+          <div class="timeline" id="timeline"></div>
+          <form id="timelineForm" class="mini-form">
+            <input type="hidden" name="timelineId" />
+            <div class="mini-form__grid">
+              <label>
+                <span>Başlık</span>
+                <input type="text" name="title" required />
+              </label>
+              <label>
+                <span>Tarih</span>
+                <input type="date" name="date" />
+              </label>
+              <label class="full-width">
+                <span>Not</span>
+                <textarea name="notes" rows="2"></textarea>
+              </label>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn" data-role="submit">Süreç Kaydet</button>
+              <button type="button" class="ghost-btn" data-action="cancel-timeline">İptal</button>
+            </div>
+          </form>
+        </section>
+      </div>
+
+      <div class="form-grid">
+        <section class="form-card">
+          <header>
+            <h3>Ziyaret Ekle</h3>
+          </header>
+          <form id="visitForm">
+            <input type="hidden" name="entryId" />
+            <label>
+              <span>İşlem Tarihi</span>
+              <input type="date" name="date" required />
+            </label>
+            <label>
+              <span>Firma</span>
+              <input type="text" name="company" required />
+            </label>
+            <label>
+              <span>Yetkili</span>
+              <input type="text" name="contact" required />
+            </label>
+            <label>
+              <span>İletişim Bilgisi</span>
+              <input type="text" name="phone" />
+            </label>
+            <label class="full-width">
+              <span>Ziyaret Notları</span>
+              <textarea name="notes" rows="3"></textarea>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn" data-role="submit">Ziyareti Kaydet</button>
+              <button type="button" class="ghost-btn" data-action="cancel-log" data-log-type="visit">İptal</button>
+            </div>
+          </form>
+          <ul class="log-list" id="visitLog"></ul>
+        </section>
+
+        <section class="form-card">
+          <header>
+            <h3>Teklif Ekle</h3>
+          </header>
+          <form id="offerForm">
+            <input type="hidden" name="entryId" />
+            <label>
+              <span>İşlem Tarihi</span>
+              <input type="date" name="date" required />
+            </label>
+            <label>
+              <span>Firma</span>
+              <input type="text" name="company" required />
+            </label>
+            <label>
+              <span>Ürün Grubu</span>
+              <input type="text" name="productGroup" />
+            </label>
+            <label>
+              <span>Yetkili</span>
+              <input type="text" name="contact" required />
+            </label>
+            <label>
+              <span>İletişim Bilgisi</span>
+              <input type="text" name="phone" />
+            </label>
+            <label>
+              <span>Teklif Tutarı (₺)</span>
+              <input type="number" name="amount" min="0" step="0.01" />
+            </label>
+            <label class="full-width">
+              <span>Teklif Notları</span>
+              <textarea name="notes" rows="3"></textarea>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn" data-role="submit">Teklifi Kaydet</button>
+              <button type="button" class="ghost-btn" data-action="cancel-log" data-log-type="offer">İptal</button>
+            </div>
+          </form>
+          <ul class="log-list" id="offerLog"></ul>
+        </section>
+
+        <section class="form-card">
+          <header>
+            <h3>Tahsilat Ekle</h3>
+          </header>
+          <form id="paymentForm">
+            <input type="hidden" name="entryId" />
+            <label>
+              <span>İşlem Tarihi</span>
+              <input type="date" name="date" required />
+            </label>
+            <label>
+              <span>Firma</span>
+              <input type="text" name="company" required />
+            </label>
+            <label>
+              <span>Ürün Grubu</span>
+              <input type="text" name="productGroup" />
+            </label>
+            <label>
+              <span>Tahsilat Tutarı (₺)</span>
+              <input type="number" name="amount" min="0" step="0.01" required />
+            </label>
+            <label>
+              <span>Yöntem</span>
+              <input type="text" name="method" placeholder="Havale, EFT, Nakit..." />
+            </label>
+            <label class="full-width">
+              <span>Tahsilat Notları</span>
+              <textarea name="notes" rows="3"></textarea>
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn" data-role="submit">Tahsilatı Kaydet</button>
+              <button type="button" class="ghost-btn" data-action="cancel-log" data-log-type="payment">İptal</button>
+            </div>
+          </form>
+          <ul class="log-list" id="paymentLog"></ul>
+        </section>
+      </div>
+    </section>
+
+    <section class="dashboard hidden" data-view="construction-detail">
+      <header class="section-header">
+        <h2>İnşaat Firması Detay</h2>
+      </header>
+      <table>
+        <thead>
+          <tr>
+            <th>İşlemler</th>
+            <th>İnşaat Firmaları</th>
+            <th>İl</th>
+            <th>Yetkili</th>
+            <th>Çalışma Durumu</th>
+            <th>Sorumlu Personel</th>
+          </tr>
+        </thead>
+        <tbody id="constructionTableBody"></tbody>
+      </table>
+      <section class="profile" id="constructionProfile"></section>
+    </section>
+
+    <section class="dashboard hidden" data-view="mechanical-detail">
+      <header class="section-header">
+        <h2>Mekanik Firma Detay</h2>
+      </header>
+      <table>
+        <thead>
+          <tr>
+            <th>İşlemler</th>
+            <th>Mekanik Firmaları</th>
+            <th>İl</th>
+            <th>Yetkili</th>
+            <th>Çalışma Durumu</th>
+            <th>Sorumlu Personel</th>
+          </tr>
+        </thead>
+        <tbody id="mechanicalTableBody"></tbody>
+      </table>
+      <section class="profile" id="mechanicalProfile"></section>
+    </section>
+
+    <section class="dashboard hidden" data-view="assignments">
+      <header class="section-header">
+        <h2>Atamalar</h2>
+      </header>
+      <table>
+        <thead>
+          <tr>
+            <th>Atanma Tarihi</th>
+            <th>Atanan Personel</th>
+            <th>Atanma Kategorisi</th>
+            <th>Proje/Firma İsmi</th>
+            <th>Durum</th>
+          </tr>
+        </thead>
+        <tbody id="assignmentTableBody"></tbody>
+      </table>
+    </section>
+
+    <section class="dashboard hidden" data-view="requests">
+      <header class="section-header">
+        <h2>Talep ve Teklif Raporları</h2>
+        <p class="muted">Güncel teklif, tahsilat ve ziyaret taleplerini buradan takip edin.</p>
+      </header>
+      <div class="request-grid" id="requestGrid"></div>
+    </section>
+  </main>
+
+  <div class="modal hidden" id="newRecordModal">
+    <div class="modal__content">
+      <button class="modal__close" id="closeModal">×</button>
+      <h2>Yeni Kayıt Oluştur</h2>
+      <p>Eklemek istediğiniz kayıt tipini seçin:</p>
+      <div class="modal__actions">
+        <button class="ghost-btn">Proje Kaydı</button>
+        <button class="ghost-btn">İnşaat Firması</button>
+        <button class="ghost-btn">Mekanik Firması</button>
+        <button class="ghost-btn">Ziyaret/Teklif</button>
+      </div>
+      <p class="muted">Detaylı kayıt formları için proje bilgi alanını kullanabilirsiniz.</p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
