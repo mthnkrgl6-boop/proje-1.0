@@ -515,6 +515,24 @@ table td.status-chip {
   padding: 0.35rem 0.75rem;
   font-size: 0.8rem;
 }
+.table-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.table-chip--offer {
+  background: rgba(255, 148, 66, 0.15);
+  color: var(--orange-dark);
+}
+.table-chip--payment {
+  background: rgba(31, 60, 136, 0.12);
+  color: var(--navy);
+}
 
 .full-row {
   grid-column: 1 / -1;
@@ -717,6 +735,11 @@ form .full-width {
 .profile-form .form-actions {
   justify-content: space-between;
   align-items: center;
+}
+.profile-form .form-actions__controls {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .profile .form-feedback {

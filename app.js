@@ -96,6 +96,8 @@ const projectStore = [
         company: 'ADA Group',
         contact: 'Ahmet Er',
         phone: 'ahmet.er@adagroup.com',
+        amount: 985000,
+        productGroup: 'PVC & Flex Hatları',
         notes: 'PVC boru ve flex ürünleri için 985.000₺ teklif edildi.',
       },
     ],
@@ -153,6 +155,7 @@ const projectStore = [
         id: 'payment-002-1',
         date: '2025-02-28',
         company: '123 Yapı A.Ş.',
+        productGroup: 'Sessiz-TR Hatları',
         amount: 350000,
         method: 'Havale',
         notes: 'İlk parti sevkiyat için ön ödeme alındı.',
@@ -235,6 +238,8 @@ const projectStore = [
         company: 'Kuzey İnşaat',
         contact: 'Derya Kılıç',
         phone: '+90 312 400 22 11',
+        amount: 890000,
+        productGroup: 'Hastane Altyapı Hatları',
         notes: 'Hastane altyapısı için ürün kalemleri gönderildi.',
       },
     ],
@@ -243,6 +248,7 @@ const projectStore = [
         id: 'payment-004-1',
         date: '2025-02-05',
         company: 'Karadeniz Bölge Bayi',
+        productGroup: 'Metal Hatlar',
         amount: 120000,
         method: 'Dekont',
         notes: 'Bayi üzerinden tahsil edildi.',
@@ -414,6 +420,27 @@ function ensureFirmRecord(type, name) {
   }
 
   return { firm, created };
+}
+
+function deleteFirmRecord(type, name) {
+  const context = getFirmContext(type);
+  if (!context) return false;
+  const trimmedName = name?.trim();
+  if (!trimmedName) return false;
+
+  const { store, relationKey } = context;
+  const index = store.findIndex((item) => (item.name ?? '').trim() === trimmedName);
+  if (index === -1) return false;
+
+  store.splice(index, 1);
+
+  projectStore.forEach((project) => {
+    if ((project[relationKey] ?? '').trim() === trimmedName) {
+      project[relationKey] = '';
+    }
+  });
+
+  return true;
 }
 
 function refreshFirmTable(type) {
@@ -737,9 +764,8 @@ function renderProjectDetail(projectId) {
   resetLogForm('offer');
   resetLogForm('payment');
 
-  renderProducts(project);
   renderTimeline(project);
-  renderLogs();
+  renderLogs(project);
   renderFirmProfileByName('construction', project.contractor);
   renderFirmProfileByName('mechanical', project.mechanical);
   renderProjectTable(projectSearch?.value ?? '');
@@ -779,8 +805,8 @@ function clearProjectDetails() {
 
 function renderProducts(project) {
   if (!productTableBody) return;
-  if (!project || !project.products.length) {
-    productTableBody.innerHTML = '<tr><td colspan="5">Henüz ürün kaydı bulunmuyor.</td></tr>';
+  if (!project) {
+    productTableBody.innerHTML = '<tr><td colspan="5">Proje seçiniz.</td></tr>';
     offerTotal.textContent = '-';
     paymentTotal.textContent = '-';
     return;
@@ -788,26 +814,73 @@ function renderProducts(project) {
 
   let offerSum = 0;
   let paymentSum = 0;
+  const rows = [];
 
-  productTableBody.innerHTML = project.products
-    .map((product) => {
-      offerSum += Number(product.offer ?? 0);
-      paymentSum += Number(product.payment ?? 0);
-      return `
-        <tr data-product-id="${product.id}">
+  if (Array.isArray(project.products)) {
+    project.products.forEach((product) => {
+      const offerRaw = Number(product.offer ?? 0);
+      const paymentRaw = Number(product.payment ?? 0);
+      const offerValue = Number.isFinite(offerRaw) ? offerRaw : 0;
+      const paymentValue = Number.isFinite(paymentRaw) ? paymentRaw : 0;
+      offerSum += offerValue;
+      paymentSum += paymentValue;
+      rows.push(`
+        <tr data-product-id="${product.id}" data-row-type="product">
           <td class="table-actions">
             <button class="ghost-btn" data-action="edit-product">Düzenle</button>
             <button class="ghost-btn danger" data-action="delete-product">Sil</button>
           </td>
-          <td>${product.group}</td>
-          <td>${product.offer ? formatCurrency(product.offer) : '-'}</td>
-          <td>${product.payment ? formatCurrency(product.payment) : '-'}</td>
-          <td>${product.brand || '-'}</td>
+          <td>${escapeHtml(product.group ?? '-')}</td>
+          <td>${offerValue ? formatCurrency(offerValue) : '-'}</td>
+          <td>${paymentValue ? formatCurrency(paymentValue) : '-'}</td>
+          <td>${escapeHtml(product.brand ?? '-')}</td>
         </tr>
-      `;
-    })
-    .join('');
+      `);
+    });
+  }
 
+  if (Array.isArray(project.offers)) {
+    project.offers.forEach((entry) => {
+      const amountRaw = Number(entry.amount ?? 0);
+      const amount = Number.isFinite(amountRaw) ? amountRaw : 0;
+      offerSum += amount;
+      rows.push(`
+        <tr data-log-row="offer-${entry.id}" class="is-log-row">
+          <td class="table-actions"><span class="table-chip table-chip--offer">Teklif</span></td>
+          <td>${escapeHtml(entry.productGroup ?? '-')}</td>
+          <td>${amount ? formatCurrency(amount) : '-'}</td>
+          <td>-</td>
+          <td>${escapeHtml(entry.company ?? '-')}</td>
+        </tr>
+      `);
+    });
+  }
+
+  if (Array.isArray(project.payments)) {
+    project.payments.forEach((entry) => {
+      const amountRaw = Number(entry.amount ?? 0);
+      const amount = Number.isFinite(amountRaw) ? amountRaw : 0;
+      paymentSum += amount;
+      rows.push(`
+        <tr data-log-row="payment-${entry.id}" class="is-log-row">
+          <td class="table-actions"><span class="table-chip table-chip--payment">Tahsilat</span></td>
+          <td>${escapeHtml(entry.productGroup ?? '-')}</td>
+          <td>-</td>
+          <td>${amount ? formatCurrency(amount) : '-'}</td>
+          <td>${escapeHtml(entry.method ?? entry.company ?? '-')}</td>
+        </tr>
+      `);
+    });
+  }
+
+  if (!rows.length) {
+    productTableBody.innerHTML = '<tr><td colspan="5">Henüz finans kaydı bulunmuyor.</td></tr>';
+    offerTotal.textContent = '-';
+    paymentTotal.textContent = '-';
+    return;
+  }
+
+  productTableBody.innerHTML = rows.join('');
   offerTotal.textContent = formatCurrency(offerSum);
   paymentTotal.textContent = formatCurrency(paymentSum);
 }
@@ -839,9 +912,7 @@ function renderTimeline(project) {
     .join('');
 }
 
-function renderLogs() {
-  const project = getProject(selectedProjectId);
-
+function renderLogs(project = getProject(selectedProjectId)) {
   renderLogList(
     visitLog,
     project?.visits ?? [],
@@ -858,25 +929,39 @@ function renderLogs() {
     offerLog,
     project?.offers ?? [],
     'offer',
-    (item) => `
-      <strong>${item.company}</strong>
-      <span>${formatDisplayDate(item.date)}</span>
-      <p>${item.notes ?? ''}</p>
-      <span>Yetkili: ${item.contact}${item.phone ? ' • ' + item.phone : ''}</span>
-    `,
+    (item) => {
+      const amountValue = Number(item.amount ?? 0);
+      const hasAmount =
+        item.amount !== undefined && item.amount !== null && item.amount !== '' && Number.isFinite(amountValue);
+      return `
+        <strong>${item.company}</strong>
+        <span>${formatDisplayDate(item.date)}${hasAmount ? ' • ' + formatCurrency(amountValue) : ''}</span>
+        <span>Ürün Grubu: ${item.productGroup || '-'}</span>
+        <p>${item.notes ?? ''}</p>
+        <span>Yetkili: ${item.contact}${item.phone ? ' • ' + item.phone : ''}</span>
+      `;
+    },
   );
 
   renderLogList(
     paymentLog,
     project?.payments ?? [],
     'payment',
-    (item) => `
-      <strong>${item.company}</strong>
-      <span>${formatDisplayDate(item.date)} • ${item.amount ? formatCurrency(item.amount) : '-'}</span>
-      <p>${item.notes ?? ''}</p>
-      <span>Ödeme Yöntemi: ${item.method || '-'}</span>
-    `,
+    (item) => {
+      const amountValue = Number(item.amount ?? 0);
+      const hasAmount =
+        item.amount !== undefined && item.amount !== null && item.amount !== '' && Number.isFinite(amountValue);
+      return `
+        <strong>${item.company}</strong>
+        <span>${formatDisplayDate(item.date)} • ${hasAmount ? formatCurrency(amountValue) : '-'}</span>
+        <span>Ürün Grubu: ${item.productGroup || '-'}</span>
+        <p>${item.notes ?? ''}</p>
+        <span>Ödeme Yöntemi: ${item.method || '-'}</span>
+      `;
+    },
   );
+
+  renderProducts(project);
 }
 
 function renderLogList(target, items, type, templateFn) {
@@ -985,7 +1070,10 @@ function buildFirmProfile(firm, type, relatedProjects) {
       </div>
       <div class="form-actions">
         <span class="form-feedback" data-role="feedback"></span>
-        <button type="submit" class="primary-btn">Bilgileri Güncelle</button>
+        <div class="form-actions__controls">
+          <button type="button" class="ghost-btn danger" data-action="delete-firm">Firmayı Sil</button>
+          <button type="submit" class="primary-btn">Bilgileri Güncelle</button>
+        </div>
       </div>
     </form>
     <div class="profile__group">
@@ -1249,9 +1337,15 @@ function setupForms() {
         notes: formData.get('notes')?.trim() ?? '',
       };
 
+      if (type === 'offer') {
+        entry.amount = Number(formData.get('amount') || 0);
+        entry.productGroup = formData.get('productGroup')?.trim() ?? '';
+      }
+
       if (type === 'payment') {
         entry.amount = Number(formData.get('amount') || 0);
         entry.method = formData.get('method')?.trim() ?? '';
+        entry.productGroup = formData.get('productGroup')?.trim() ?? '';
       }
 
       if (isEditing) {
@@ -1262,7 +1356,7 @@ function setupForms() {
       }
 
       resetLogForm(type);
-      renderLogs();
+      renderLogs(project);
     });
 
     form.querySelector('[data-action="cancel-log"]')?.addEventListener('click', () => {
@@ -1350,9 +1444,14 @@ function setupForms() {
         setFormValue(form, 'contact', entry.contact);
         setFormValue(form, 'phone', entry.phone);
         setFormValue(form, 'notes', entry.notes);
+        if (type === 'offer') {
+          setFormValue(form, 'amount', entry.amount);
+          setFormValue(form, 'productGroup', entry.productGroup);
+        }
         if (type === 'payment') {
           setFormValue(form, 'amount', entry.amount);
           setFormValue(form, 'method', entry.method);
+          setFormValue(form, 'productGroup', entry.productGroup);
         }
       } else if (button.dataset.action === 'delete-log') {
         if (!window.confirm('Kaydı silmek istediğinize emin misiniz?')) return;
@@ -1360,7 +1459,7 @@ function setupForms() {
         if (logEditState[type] === logId) {
           resetLogForm(type);
         }
-        renderLogs();
+        renderLogs(project);
       }
     });
   });
@@ -1450,6 +1549,32 @@ function setupFirmProfileForms() {
             feedback.classList.remove('is-visible');
           }
         }, 2000);
+      }
+    });
+
+    profile?.addEventListener('click', (event) => {
+      const button = event.target instanceof HTMLElement ? event.target.closest('button[data-action="delete-firm"]') : null;
+      if (!button) return;
+      const form = button.closest('form[data-firm-type][data-firm-name]');
+      if (!(form instanceof HTMLFormElement)) return;
+      const firmType = form.dataset.firmType;
+      const firmName = form.dataset.firmName;
+      if (!firmType || !firmName) return;
+      if (!window.confirm(`${firmName} kaydını silmek istediğinize emin misiniz?`)) return;
+
+      const deleted = deleteFirmRecord(firmType, firmName);
+      if (!deleted) return;
+
+      refreshFirmTable(firmType);
+      const context = getFirmContext(firmType);
+      const target = context?.profileTarget?.();
+      if (target) {
+        target.innerHTML = `<p class="muted">${context?.emptyMessage ?? 'Firma seçiniz.'}</p>`;
+      }
+
+      renderProjectTable(projectSearch?.value ?? '');
+      if (selectedProjectId) {
+        renderProjectDetail(selectedProjectId);
       }
     });
   });
