@@ -468,7 +468,36 @@
         <h2>Talep ve Teklif Raporları</h2>
         <p class="muted">Güncel teklif, tahsilat ve ziyaret taleplerini buradan takip edin.</p>
       </header>
-      <div class="request-grid" id="requestGrid"></div>
+      <div class="request-layout">
+        <form class="form-card request-form" id="requestForm">
+          <input type="hidden" name="requestId" />
+          <label>
+            <span>Talep Başlığı</span>
+            <input type="text" name="title" placeholder="Talep açıklaması" required />
+          </label>
+          <label>
+            <span>Sorumlu Kişi</span>
+            <input type="text" name="owner" placeholder="Sorumlu personel" />
+          </label>
+          <label>
+            <span>Termin Tarihi</span>
+            <input type="date" name="due" />
+          </label>
+          <label>
+            <span>Durum</span>
+            <input type="text" name="status" placeholder="Durum" />
+          </label>
+          <label class="full-width">
+            <span>Açıklama</span>
+            <textarea name="notes" rows="2" placeholder="Talep ile ilgili kısa not"></textarea>
+          </label>
+          <div class="form-actions">
+            <button type="submit" class="primary-btn" data-role="submit">Kaydet</button>
+            <button type="button" class="ghost-btn" data-action="cancel-request">İptal</button>
+          </div>
+        </form>
+        <div class="request-grid" id="requestGrid"></div>
+      </div>
     </section>
   </main>
 

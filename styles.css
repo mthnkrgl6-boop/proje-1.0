@@ -785,10 +785,76 @@ form .full-width {
   margin-bottom: 0.5rem;
 }
 
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(31, 60, 136, 0.12);
+  color: var(--navy);
+}
+
+.status-pill--pending {
+  background: rgba(255, 140, 50, 0.18);
+  color: var(--orange-dark);
+}
+
+.status-pill--review {
+  background: rgba(31, 60, 136, 0.18);
+  color: var(--navy);
+}
+
+.status-pill--warning {
+  background: rgba(255, 95, 95, 0.18);
+  color: var(--danger);
+}
+
+.status-pill--success {
+  background: rgba(46, 204, 113, 0.18);
+  color: var(--success);
+}
+
+.status-pill--info {
+  background: rgba(108, 122, 146, 0.18);
+  color: var(--navy);
+}
+
+.request-layout {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: minmax(280px, 360px) 1fr;
+}
+
+.request-form {
+  align-self: start;
+}
+
+@media (max-width: 960px) {
+  .request-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 .request-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 1.5rem;
+}
+
+.request-grid.is-empty {
+  display: block;
+}
+
+.request-empty {
+  background: var(--white);
+  border-radius: 1.2rem;
+  border: 1px dashed var(--border);
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--muted);
 }
 
 .request-card {
@@ -801,6 +867,7 @@ form .full-width {
   box-shadow: 0 20px 32px rgba(31, 60, 136, 0.08);
 }
 
+
 .request-card h3 {
   color: var(--navy);
 }
@@ -811,8 +878,35 @@ form .full-width {
 }
 
 .request-card strong {
-  font-size: 1.1rem;
+  font-size: 1rem;
+  color: var(--navy);
+}
+
+.request-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.request-card__due strong {
   color: var(--orange-dark);
+}
+
+.request-card__notes {
+  font-size: 0.88rem;
+  color: var(--navy);
+}
+
+.request-card__meta {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.request-card__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .table-wrapper,

@@ -28,6 +28,7 @@ const deleteProjectBtn = document.getElementById('deleteProjectBtn');
 const projectForm = document.getElementById('projectForm');
 const productForm = document.getElementById('productForm');
 const timelineForm = document.getElementById('timelineForm');
+const requestForm = document.getElementById('requestForm');
 
 const counts = {
   TOKİ: document.getElementById('tokiCount'),
@@ -333,54 +334,37 @@ const firmConfig = {
   },
 };
 
-const assignments = [
+const requestStore = [
   {
-    date: '2025-03-10',
-    person: 'Çiğdem Tuna',
-    category: 'Proje',
-    name: 'Adana Sarıçam 500 Konut Projesi',
-    status: 'Takipte',
-  },
-  {
-    date: '2025-03-05',
-    person: 'Metehan Kargılı',
-    category: 'İnşaat Firması',
-    name: '1923 İnşaat A.Ş.',
-    status: 'Aktif',
-  },
-  {
-    date: '2025-02-18',
-    person: 'Metehan Kargılı',
-    category: 'Mekanik Firması',
-    name: 'Breeze Mekanik',
-    status: 'Sevkiyat',
-  },
-];
-
-const requests = [
-  {
+    id: 'req-001',
     title: 'TOKİ Adana Teklif Revizyonu',
     owner: 'Çiğdem Tuna',
-    due: '18 Mart 2025',
+    due: '2025-03-18',
     status: 'Beklemede',
+    notes: 'Ada Sarıçam projesi için revize teklif hazırlanacak.',
   },
   {
+    id: 'req-002',
     title: 'Emlak Konut Finans Onayı',
     owner: 'Metehan Kargılı',
-    due: '15 Mart 2025',
+    due: '2025-03-15',
     status: 'Onay Sürecinde',
+    notes: 'Finans onayı sonrası sevkiyat planı kesinleşecek.',
   },
   {
+    id: 'req-003',
     title: 'Bayi Tahsilat Bildirimi',
     owner: 'Karadeniz Bölge Bayi',
-    due: '20 Mart 2025',
+    due: '2025-03-20',
     status: 'Ödeme Bekleniyor',
+    notes: 'Bayi üzerinden gelen ödemenin teyidi bekleniyor.',
   },
 ];
 
 let selectedProjectId = projectStore[0]?.id ?? null;
 let editingProductId = null;
 let editingTimelineId = null;
+let editingRequestId = null;
 const logEditState = { visit: null, offer: null, payment: null };
 let projectFormMode = null;
 const defaultSubmitLabels = new Map();
@@ -407,6 +391,7 @@ function ensureFirmRecord(type, name) {
       contact: '',
       status: 'Belirtilmedi',
       owner: '',
+      ownerAssignedAt: '',
       notes: '',
       ongoing: [],
       completed: [],
@@ -417,6 +402,7 @@ function ensureFirmRecord(type, name) {
     if (!Array.isArray(firm.ongoing)) firm.ongoing = [];
     if (!Array.isArray(firm.completed)) firm.completed = [];
     if (firm.notes === undefined) firm.notes = '';
+    if (firm.ownerAssignedAt === undefined) firm.ownerAssignedAt = '';
   }
 
   return { firm, created };
@@ -528,6 +514,7 @@ function finalizeFirmDeletion(type, firmName) {
     renderProjectDetail(selectedProjectId);
   }
 
+  renderAssignments();
   return true;
 }
 
@@ -537,6 +524,66 @@ function formatCurrency(amount) {
     currency: 'TRY',
     maximumFractionDigits: 0,
   });
+}
+
+function getStatusTone(status) {
+  const value = status?.toLocaleLowerCase('tr-TR') ?? '';
+  if (!value) return 'info';
+  if (value.includes('bekle') || value.includes('takip') || value.includes('teklif')) return 'pending';
+  if (value.includes('onay') || value.includes('plan') || value.includes('koordin')) return 'review';
+  if (value.includes('ödeme') || value.includes('tahsil') || value.includes('gecik')) return 'warning';
+  if (value.includes('tamam') || value.includes('teslim') || value.includes('bit')) return 'success';
+  return 'info';
+}
+
+function computeAssignments() {
+  const results = [];
+
+  projectStore.forEach((project) => {
+    const manager = project.manager?.trim();
+    if (!manager) return;
+    const status = project.progress?.trim() || project.salesStatus?.trim() || 'Takipte';
+    const date = project.updatedAt || project.addedAt || '';
+    results.push({
+      id: `project-${project.id}`,
+      date,
+      person: manager,
+      category: 'Proje',
+      name: project.name || project.id,
+      status,
+    });
+  });
+
+  const pushFirmAssignments = (store, category) => {
+    store.forEach((firm) => {
+      const owner = firm.owner?.trim();
+      if (!owner) return;
+      const status = firm.status?.trim() || 'Takipte';
+      const date = firm.ownerAssignedAt || '';
+      results.push({
+        id: `${category}-${firm.name}`,
+        date,
+        person: owner,
+        category,
+        name: firm.name || '-',
+        status,
+      });
+    });
+  };
+
+  pushFirmAssignments(constructionFirms, 'İnşaat Firması');
+  pushFirmAssignments(mechanicalFirms, 'Mekanik Firması');
+
+  return results
+    .map((item) => {
+      const timestamp = Date.parse(item.date || '');
+      return { ...item, sortValue: Number.isNaN(timestamp) ? 0 : timestamp };
+    })
+    .sort((a, b) => {
+      if (b.sortValue !== a.sortValue) return b.sortValue - a.sortValue;
+      return (a.name || '').localeCompare(b.name || '', 'tr');
+    })
+    .map(({ sortValue, ...item }) => item);
 }
 
 function formatDisplayDate(value) {
@@ -626,6 +673,14 @@ function resetLogForm(type) {
   if (idField) idField.value = '';
   logEditState[type] = null;
   resetSubmitLabel(config.form);
+}
+
+function resetRequestForm() {
+  if (!requestForm) return;
+  requestForm.reset();
+  editingRequestId = null;
+  setFormValue(requestForm, 'requestId', '');
+  resetSubmitLabel(requestForm);
 }
 
 function setFormValue(form, name, value) {
@@ -1109,34 +1164,91 @@ function buildFirmProfile(firm, type, relatedProjects) {
 }
 
 function renderAssignments() {
-  assignmentTableBody.innerHTML = assignments
-    .map(
-      (item) => `
+  if (!assignmentTableBody) return;
+  const items = computeAssignments();
+  if (!items.length) {
+    assignmentTableBody.innerHTML = '<tr><td colspan="5">Atama bulunmuyor.</td></tr>';
+    return;
+  }
+
+  assignmentTableBody.innerHTML = items
+    .map((item) => {
+      const date = formatDisplayDate(item.date);
+      const tone = getStatusTone(item.status);
+      return `
         <tr>
-          <td>${item.date}</td>
-          <td>${item.person}</td>
-          <td>${item.category}</td>
-          <td>${item.name}</td>
-          <td>${item.status}</td>
+          <td>${escapeHtml(date)}</td>
+          <td>${escapeHtml(item.person)}</td>
+          <td>${escapeHtml(item.category)}</td>
+          <td>${escapeHtml(item.name)}</td>
+          <td><span class="status-pill status-pill--${tone}">${escapeHtml(item.status)}</span></td>
         </tr>
-      `,
-    )
+      `;
+    })
     .join('');
 }
 
 function renderRequests() {
-  requestGrid.innerHTML = requests
-    .map(
-      (item) => `
-        <article class="request-card">
-          <h3>${item.title}</h3>
-          <span>Sorumlu: <strong>${item.owner}</strong></span>
-          <span>Termin: ${item.due}</span>
-          <span>Durum: ${item.status}</span>
+  if (!requestGrid) return;
+  if (!requestStore.length) {
+    requestGrid.classList.add('is-empty');
+    requestGrid.innerHTML =
+      '<p class="muted request-empty">Henüz talep bulunmuyor. Formu kullanarak yeni bir talep ekleyin.</p>';
+    return;
+  }
+
+  requestGrid.classList.remove('is-empty');
+  requestGrid.innerHTML = requestStore
+    .map((item) => {
+      const dueLabel = formatDisplayDate(item.due);
+      const tone = getStatusTone(item.status);
+      const notesBlock = item.notes
+        ? `<p class="request-card__notes">${escapeHtml(item.notes)}</p>`
+        : '';
+      return `
+        <article class="request-card" data-request-id="${escapeHtml(item.id)}">
+          <header class="request-card__header">
+            <h3>${escapeHtml(item.title)}</h3>
+            <span class="request-card__due">Termin: <strong>${escapeHtml(dueLabel)}</strong></span>
+          </header>
+          ${notesBlock}
+          <div class="request-card__meta">
+            <span>Sorumlu: <strong>${escapeHtml(item.owner || '-')}</strong></span>
+            <span>Durum: <span class="status-pill status-pill--${tone}">${escapeHtml(item.status || '-')}</span></span>
+          </div>
+          <div class="request-card__actions">
+            <button class="ghost-btn" data-action="edit-request">Düzenle</button>
+            <button class="ghost-btn danger" data-action="delete-request">Sil</button>
+          </div>
         </article>
-      `,
-    )
+      `;
+    })
     .join('');
+}
+
+function openRequestEditor(requestId) {
+  if (!requestForm) return;
+  const request = requestStore.find((item) => item.id === requestId);
+  if (!request) return;
+  editingRequestId = request.id;
+  setSubmitLabel(requestForm, 'Güncelle');
+  setFormValue(requestForm, 'requestId', request.id);
+  setFormValue(requestForm, 'title', request.title);
+  setFormValue(requestForm, 'owner', request.owner);
+  setFormValue(requestForm, 'due', request.due);
+  setFormValue(requestForm, 'status', request.status);
+  setFormValue(requestForm, 'notes', request.notes);
+}
+
+function deleteRequest(requestId) {
+  const index = requestStore.findIndex((item) => item.id === requestId);
+  if (index === -1) return false;
+  requestStore.splice(index, 1);
+  if (editingRequestId === requestId) {
+    resetRequestForm();
+  }
+  renderRequests();
+  return true;
 }
 
 function setupForms() {
@@ -1147,6 +1259,7 @@ function setupForms() {
   registerDefaultLabel(projectForm);
   registerDefaultLabel(productForm);
   registerDefaultLabel(timelineForm);
+  registerDefaultLabel(requestForm);
   [visitForm, offerForm, paymentForm].forEach((form) => registerDefaultLabel(form));
 
   logForms.visit = { form: visitForm, collection: 'visits' };
@@ -1179,6 +1292,7 @@ function setupForms() {
     } else {
       clearProjectDetails();
     }
+    renderAssignments();
   });
 
   projectSelector?.addEventListener('change', (event) => {
@@ -1281,6 +1395,7 @@ function setupForms() {
     populateProjectSelector();
     renderProjectTable(projectSearch?.value ?? '');
     renderProjectDetail(selectedProjectId);
+    renderAssignments();
   });
 
   productForm?.addEventListener('submit', (event) => {
@@ -1340,6 +1455,66 @@ function setupForms() {
 
   timelineForm?.querySelector('[data-action="cancel-timeline"]')?.addEventListener('click', () => {
     resetTimelineForm();
+  });
+
+  requestForm?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!requestForm) return;
+    const formData = new FormData(requestForm);
+    const title = formData.get('title')?.trim();
+    if (!title) {
+      window.alert('Talep başlığı zorunludur.');
+      return;
+    }
+
+    let requestId = editingRequestId || formData.get('requestId')?.trim() || '';
+    if (!requestId) {
+      requestId = createId('req');
+    } else if (!editingRequestId && requestStore.some((item) => item.id === requestId)) {
+      window.alert('Bu talep kodu zaten kullanılıyor.');
+      return;
+    }
+
+    const payload = {
+      id: requestId,
+      title,
+      owner: formData.get('owner')?.trim() ?? '',
+      due: formData.get('due') || '',
+      status: formData.get('status')?.trim() ?? '',
+      notes: formData.get('notes')?.trim() ?? '',
+    };
+
+    if (editingRequestId) {
+      const target = requestStore.find((item) => item.id === editingRequestId);
+      if (target) Object.assign(target, payload);
+    } else {
+      requestStore.push(payload);
+    }
+
+    resetRequestForm();
+    renderRequests();
+  });
+
+  requestForm?.querySelector('[data-action="cancel-request"]')?.addEventListener('click', () => {
+    resetRequestForm();
+  });
+
+  requestGrid?.addEventListener('click', (event) => {
+    const button = event.target instanceof HTMLElement ? event.target.closest('button[data-action]') : null;
+    if (!button) return;
+    const card = button.closest('[data-request-id]');
+    const requestId = card?.dataset.requestId;
+    if (!requestId) return;
+
+    if (button.dataset.action === 'edit-request') {
+      openRequestEditor(requestId);
+      return;
+    }
+
+    if (button.dataset.action === 'delete-request') {
+      if (!window.confirm('Bu talebi silmek istediğinize emin misiniz?')) return;
+      deleteRequest(requestId);
+    }
   });
 
   Object.entries(logForms).forEach(([type, config]) => {
@@ -1562,6 +1737,7 @@ function setupFirmProfileForms() {
       const firm = context.store.find((item) => item.name === firmName);
       if (!firm) return;
 
+      const previousOwner = firm.owner?.trim() ?? '';
       const city = form.elements.namedItem('firmCity')?.value?.trim() ?? '';
       const contact = form.elements.namedItem('firmContact')?.value?.trim() ?? '';
       const status = form.elements.namedItem('firmStatus')?.value?.trim() ?? '';
@@ -1572,6 +1748,12 @@ function setupFirmProfileForms() {
       firm.contact = contact;
       firm.status = status;
       firm.owner = owner;
+      if (owner && owner !== previousOwner) {
+        firm.ownerAssignedAt = new Date().toISOString().slice(0, 10);
+      }
+      if (!owner) {
+        firm.ownerAssignedAt = '';
+      }
       firm.notes = notes;
 
       setFormValue(form, 'firmCity', firm.city);
@@ -1581,6 +1763,7 @@ function setupFirmProfileForms() {
       setFormValue(form, 'firmNotes', firm.notes);
 
       refreshFirmTable(firmType);
+      renderAssignments();
 
       const feedback = form.querySelector('[data-role="feedback"]');
       if (feedback) {
