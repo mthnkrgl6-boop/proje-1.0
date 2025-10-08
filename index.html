@@ -103,10 +103,104 @@
     <section class="dashboard hidden" data-view="project-detail">
       <div class="detail-grid">
         <section class="detail-card">
-          <header>
-            <h2>Proje Bilgi</h2>
+          <header class="detail-header">
+            <div>
+              <h2>Proje Bilgi</h2>
+              <p class="muted">Projeleri tek noktadan yönetin, bilgileri güncelleyin.</p>
+            </div>
+            <div class="detail-actions">
+              <label class="detail-actions__select">
+                <span>Proje Seç</span>
+                <select id="projectSelector"></select>
+              </label>
+              <button class="ghost-btn" id="newProjectBtn">Yeni</button>
+              <button class="ghost-btn" id="editProjectBtn">Düzenle</button>
+              <button class="ghost-btn danger" id="deleteProjectBtn">Sil</button>
+            </div>
           </header>
           <dl id="projectInfo" class="detail-list"></dl>
+          <form id="projectForm" class="edit-form hidden">
+            <input type="hidden" name="originalId" />
+            <div class="edit-form__grid">
+              <label>
+                <span>Proje Kodu</span>
+                <input type="text" name="projectId" required />
+              </label>
+              <label>
+                <span>Proje Adı</span>
+                <input type="text" name="projectName" required />
+              </label>
+              <label>
+                <span>Kategori</span>
+                <select name="projectCategory" required>
+                  <option value="">Seçin</option>
+                  <option value="TOKİ">TOKİ</option>
+                  <option value="Emlak Konut">Emlak Konut</option>
+                  <option value="Özel">Özel</option>
+                  <option value="Kamu">Kamu</option>
+                </select>
+              </label>
+              <label>
+                <span>İl</span>
+                <input type="text" name="projectCity" required />
+              </label>
+              <label>
+                <span>Eklenme Tarihi</span>
+                <input type="date" name="addedAt" />
+              </label>
+              <label>
+                <span>Son Güncelleme</span>
+                <input type="date" name="updatedAt" />
+              </label>
+              <label>
+                <span>Yüklenici</span>
+                <input type="text" name="contractor" />
+              </label>
+              <label>
+                <span>Mekanik Yüklenici</span>
+                <input type="text" name="mechanical" />
+              </label>
+              <label>
+                <span>Satış Durumu</span>
+                <input type="text" name="salesStatus" />
+              </label>
+              <label>
+                <span>Proje Sorumlusu</span>
+                <input type="text" name="manager" />
+              </label>
+              <label>
+                <span>Bağlantı Türü</span>
+                <select name="channel">
+                  <option value="direct">Doğrudan</option>
+                  <option value="dealer">Bayi</option>
+                </select>
+              </label>
+              <label>
+                <span>Bayi / Kanal</span>
+                <input type="text" name="channelName" />
+              </label>
+              <label class="full-width">
+                <span>Kapsam</span>
+                <textarea name="scope" rows="2"></textarea>
+              </label>
+              <label>
+                <span>Sorumlu Kurum</span>
+                <input type="text" name="responsibleInstitution" />
+              </label>
+              <label>
+                <span>Atanan Ekip</span>
+                <input type="text" name="assignedTeam" />
+              </label>
+              <label class="full-width">
+                <span>İlerleme Notu</span>
+                <textarea name="progress" rows="2"></textarea>
+              </label>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn" data-role="submit">Kaydet</button>
+              <button type="button" class="ghost-btn" data-action="cancel-project">İptal</button>
+            </div>
+          </form>
           <div class="upload-box">
             <p>Ürün ve proje belgelerini buraya sürükleyin</p>
             <button class="ghost-btn">Belge Yükle</button>
@@ -120,6 +214,7 @@
           <table class="mini-table">
             <thead>
               <tr>
+                <th>İşlem</th>
                 <th>Ürün Grubu</th>
                 <th>Teklif Tutarı</th>
                 <th>Tahsilat</th>
@@ -129,6 +224,7 @@
             <tbody id="productTableBody"></tbody>
             <tfoot>
               <tr>
+                <th></th>
                 <th>Toplam</th>
                 <th id="offerTotal">-</th>
                 <th id="paymentTotal">-</th>
@@ -136,6 +232,31 @@
               </tr>
             </tfoot>
           </table>
+          <form id="productForm" class="mini-form">
+            <input type="hidden" name="productId" />
+            <div class="mini-form__grid">
+              <label>
+                <span>Ürün Grubu</span>
+                <input type="text" name="group" required />
+              </label>
+              <label>
+                <span>Teklif</span>
+                <input type="number" name="offer" min="0" step="1000" />
+              </label>
+              <label>
+                <span>Tahsilat</span>
+                <input type="number" name="payment" min="0" step="1000" />
+              </label>
+              <label>
+                <span>Marka</span>
+                <input type="text" name="brand" />
+              </label>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn" data-role="submit">Ürün Kaydet</button>
+              <button type="button" class="ghost-btn" data-action="cancel-product">İptal</button>
+            </div>
+          </form>
         </section>
 
         <section class="detail-card full-row">
@@ -143,6 +264,27 @@
             <h2>İletişim ve Süreç</h2>
           </header>
           <div class="timeline" id="timeline"></div>
+          <form id="timelineForm" class="mini-form">
+            <input type="hidden" name="timelineId" />
+            <div class="mini-form__grid">
+              <label>
+                <span>Başlık</span>
+                <input type="text" name="title" required />
+              </label>
+              <label>
+                <span>Tarih</span>
+                <input type="date" name="date" />
+              </label>
+              <label class="full-width">
+                <span>Not</span>
+                <textarea name="notes" rows="2"></textarea>
+              </label>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn" data-role="submit">Süreç Kaydet</button>
+              <button type="button" class="ghost-btn" data-action="cancel-timeline">İptal</button>
+            </div>
+          </form>
         </section>
       </div>
 
@@ -152,6 +294,7 @@
             <h3>Ziyaret Ekle</h3>
           </header>
           <form id="visitForm">
+            <input type="hidden" name="entryId" />
             <label>
               <span>İşlem Tarihi</span>
               <input type="date" name="date" required />
@@ -172,7 +315,10 @@
               <span>Ziyaret Notları</span>
               <textarea name="notes" rows="3"></textarea>
             </label>
-            <button type="submit" class="primary-btn">Ziyareti Kaydet</button>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn" data-role="submit">Ziyareti Kaydet</button>
+              <button type="button" class="ghost-btn" data-action="cancel-log" data-log-type="visit">İptal</button>
+            </div>
           </form>
           <ul class="log-list" id="visitLog"></ul>
         </section>
@@ -182,6 +328,7 @@
             <h3>Teklif Ekle</h3>
           </header>
           <form id="offerForm">
+            <input type="hidden" name="entryId" />
             <label>
               <span>İşlem Tarihi</span>
               <input type="date" name="date" required />
@@ -202,7 +349,10 @@
               <span>Teklif Notları</span>
               <textarea name="notes" rows="3"></textarea>
             </label>
-            <button type="submit" class="primary-btn">Teklifi Kaydet</button>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn" data-role="submit">Teklifi Kaydet</button>
+              <button type="button" class="ghost-btn" data-action="cancel-log" data-log-type="offer">İptal</button>
+            </div>
           </form>
           <ul class="log-list" id="offerLog"></ul>
         </section>
@@ -212,6 +362,7 @@
             <h3>Tahsilat Ekle</h3>
           </header>
           <form id="paymentForm">
+            <input type="hidden" name="entryId" />
             <label>
               <span>İşlem Tarihi</span>
               <input type="date" name="date" required />
@@ -232,7 +383,10 @@
               <span>Tahsilat Notları</span>
               <textarea name="notes" rows="3"></textarea>
             </label>
-            <button type="submit" class="primary-btn">Tahsilatı Kaydet</button>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn" data-role="submit">Tahsilatı Kaydet</button>
+              <button type="button" class="ghost-btn" data-action="cancel-log" data-log-type="payment">İptal</button>
+            </div>
           </form>
           <ul class="log-list" id="paymentLog"></ul>
         </section>

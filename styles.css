@@ -330,6 +330,46 @@ table td.status-chip {
   box-shadow: 0 20px 32px rgba(31, 60, 136, 0.09);
 }
 
+.detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.detail-actions__select {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.detail-actions__select select {
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.95rem;
+  color: var(--navy);
+  background: var(--white);
+  min-width: 200px;
+  box-shadow: 0 12px 18px rgba(31, 60, 136, 0.08);
+}
+
+.detail-actions .ghost-btn {
+  padding: 0.45rem 1.1rem;
+  font-size: 0.9rem;
+}
+
 .detail-card header h2,
 .detail-card header h3 {
   color: var(--navy);
@@ -351,6 +391,51 @@ table td.status-chip {
 .detail-list dd {
   color: var(--navy);
   font-weight: 600;
+}
+
+.edit-form {
+  margin-top: 1.5rem;
+  background: rgba(31, 60, 136, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.edit-form.hidden {
+  display: none;
+}
+
+.edit-form__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem 1rem;
+}
+
+.edit-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.edit-form input,
+.edit-form textarea,
+.edit-form select {
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.95rem;
+  color: var(--navy);
+  background: var(--white);
+}
+
+.edit-form textarea {
+  resize: vertical;
+  min-height: 3.2rem;
 }
 
 .upload-box {
@@ -379,6 +464,58 @@ table td.status-chip {
   font-weight: 600;
 }
 
+.mini-form {
+  margin-top: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1rem;
+  background: rgba(31, 60, 136, 0.04);
+  display: grid;
+  gap: 0.75rem;
+}
+
+.mini-form__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+}
+
+.mini-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.mini-form input,
+.mini-form textarea,
+.mini-form select {
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.9rem;
+  color: var(--navy);
+  background: var(--white);
+}
+
+.mini-form textarea {
+  resize: vertical;
+  min-height: 3rem;
+}
+
+.table-actions {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.table-actions .ghost-btn {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+}
+
 .full-row {
   grid-column: 1 / -1;
 }
@@ -393,8 +530,27 @@ table td.status-chip {
   border-left: 4px solid var(--orange);
   padding: 0.8rem 1rem;
   border-radius: 0.9rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.timeline-item__content {
   display: grid;
   gap: 0.35rem;
+  flex: 1;
+}
+
+.timeline-item__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.timeline-item__actions .ghost-btn {
+  padding: 0.35rem 0.8rem;
+  font-size: 0.8rem;
 }
 
 .timeline-item strong {
@@ -457,6 +613,23 @@ form .full-width {
   grid-column: 1 / -1;
 }
 
+.form-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.ghost-btn.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.ghost-btn.danger:hover {
+  background: var(--danger);
+  color: var(--white);
+}
+
 .log-list {
   display: grid;
   gap: 0.5rem;
@@ -468,6 +641,28 @@ form .full-width {
   border-radius: 0.9rem;
   padding: 0.6rem 0.75rem;
   background: rgba(31, 60, 136, 0.05);
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.log-item__content {
+  display: grid;
+  gap: 0.3rem;
+  flex: 1;
+}
+
+.log-item__actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.log-item__actions .ghost-btn {
+  padding: 0.35rem 0.8rem;
+  font-size: 0.8rem;
 }
 
 .log-item strong {
