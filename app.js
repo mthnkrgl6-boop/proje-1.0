@@ -509,6 +509,28 @@ function renderFirmProfileByName(type, firmName) {
   renderFirmProfilePanel(type, firm);
 }
 
+function finalizeFirmDeletion(type, firmName) {
+  const deleted = deleteFirmRecord(type, firmName);
+  if (!deleted) return false;
+
+  refreshFirmTable(type);
+  const context = getFirmContext(type);
+  const profileTarget = context?.profileTarget?.();
+  if (profileTarget) {
+    const activeForm = profileTarget.querySelector('form[data-firm-name]');
+    if (!activeForm || activeForm.dataset.firmName === firmName) {
+      profileTarget.innerHTML = `<p class="muted">${context?.emptyMessage ?? 'Firma seçiniz.'}</p>`;
+    }
+  }
+
+  renderProjectTable(projectSearch?.value ?? '');
+  if (selectedProjectId) {
+    renderProjectDetail(selectedProjectId);
+  }
+
+  return true;
+}
+
 function formatCurrency(amount) {
   return amount.toLocaleString('tr-TR', {
     style: 'currency',
@@ -1012,7 +1034,10 @@ function renderFirmTable(target, items, searchText = '') {
 
       return `
         <tr data-firm="${escapeHtml(name)}">
-          <td><button class="ghost-btn" data-action="view">Detay</button></td>
+          <td class="table-actions">
+            <button class="ghost-btn" data-action="view">Detay</button>
+            <button class="ghost-btn danger" data-action="delete">Sil</button>
+          </td>
           <td>${escapeHtml(name)}</td>
           <td>${escapeHtml(city)}</td>
           <td>${escapeHtml(contact)}</td>
@@ -1486,22 +1511,40 @@ function setupProjectSelection() {
 function setupFirmSelection() {
   constructionTableBody.addEventListener('click', (event) => {
     if (!(event.target instanceof HTMLElement)) return;
-    if (!event.target.matches('button[data-action="view"]')) return;
-    const row = event.target.closest('tr[data-firm]');
+    const button = event.target.closest('button[data-action]');
+    if (!button) return;
+    const row = button.closest('tr[data-firm]');
     if (!row) return;
     const firm = constructionFirms.find((item) => item.name === row.dataset.firm);
     if (!firm) return;
-    renderFirmProfilePanel('construction', firm);
+    const firmName = firm.name ?? '';
+    if (!firmName) return;
+    if (button.dataset.action === 'view') {
+      renderFirmProfilePanel('construction', firm);
+    }
+    if (button.dataset.action === 'delete') {
+      if (!window.confirm(`${firmName} kaydını silmek istediğinize emin misiniz?`)) return;
+      finalizeFirmDeletion('construction', firmName);
+    }
   });
 
   mechanicalTableBody.addEventListener('click', (event) => {
     if (!(event.target instanceof HTMLElement)) return;
-    if (!event.target.matches('button[data-action="view"]')) return;
-    const row = event.target.closest('tr[data-firm]');
+    const button = event.target.closest('button[data-action]');
+    if (!button) return;
+    const row = button.closest('tr[data-firm]');
     if (!row) return;
     const firm = mechanicalFirms.find((item) => item.name === row.dataset.firm);
     if (!firm) return;
-    renderFirmProfilePanel('mechanical', firm);
+    const firmName = firm.name ?? '';
+    if (!firmName) return;
+    if (button.dataset.action === 'view') {
+      renderFirmProfilePanel('mechanical', firm);
+    }
+    if (button.dataset.action === 'delete') {
+      if (!window.confirm(`${firmName} kaydını silmek istediğinize emin misiniz?`)) return;
+      finalizeFirmDeletion('mechanical', firmName);
+    }
   });
 }
 
@@ -1562,20 +1605,7 @@ function setupFirmProfileForms() {
       if (!firmType || !firmName) return;
       if (!window.confirm(`${firmName} kaydını silmek istediğinize emin misiniz?`)) return;
 
-      const deleted = deleteFirmRecord(firmType, firmName);
-      if (!deleted) return;
-
-      refreshFirmTable(firmType);
-      const context = getFirmContext(firmType);
-      const target = context?.profileTarget?.();
-      if (target) {
-        target.innerHTML = `<p class="muted">${context?.emptyMessage ?? 'Firma seçiniz.'}</p>`;
-      }
-
-      renderProjectTable(projectSearch?.value ?? '');
-      if (selectedProjectId) {
-        renderProjectDetail(selectedProjectId);
-      }
+      finalizeFirmDeletion(firmType, firmName);
     });
   });
 }
