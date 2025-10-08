@@ -306,6 +306,27 @@ const mechanicalFirms = [
   },
 ];
 
+const firmConfig = {
+  construction: {
+    store: constructionFirms,
+    tableBody: () => constructionTableBody,
+    searchInput: () => constructionSearch,
+    profileTarget: () => constructionProfile,
+    relationKey: 'contractor',
+    label: 'İnşaat',
+    emptyMessage: 'Proje için inşaat firması belirtilmedi.',
+  },
+  mechanical: {
+    store: mechanicalFirms,
+    tableBody: () => mechanicalTableBody,
+    searchInput: () => mechanicalSearch,
+    profileTarget: () => mechanicalProfile,
+    relationKey: 'mechanical',
+    label: 'Mekanik',
+    emptyMessage: 'Proje için mekanik firması belirtilmedi.',
+  },
+};
+
 const assignments = [
   {
     date: '2025-03-10',
@@ -359,6 +380,108 @@ let projectFormMode = null;
 const defaultSubmitLabels = new Map();
 const logForms = {};
 
+function getFirmContext(type) {
+  return firmConfig[type] ?? null;
+}
+
+function ensureFirmRecord(type, name) {
+  const context = getFirmContext(type);
+  if (!context) return { firm: null, created: false };
+  const trimmedName = name?.trim();
+  if (!trimmedName) return { firm: null, created: false };
+
+  const { store } = context;
+  let firm = store.find((item) => item.name === trimmedName);
+  let created = false;
+
+  if (!firm) {
+    firm = {
+      name: trimmedName,
+      city: '',
+      contact: '',
+      status: 'Belirtilmedi',
+      owner: '',
+      notes: '',
+      ongoing: [],
+      completed: [],
+    };
+    store.push(firm);
+    created = true;
+  } else {
+    if (!Array.isArray(firm.ongoing)) firm.ongoing = [];
+    if (!Array.isArray(firm.completed)) firm.completed = [];
+    if (firm.notes === undefined) firm.notes = '';
+  }
+
+  return { firm, created };
+}
+
+function refreshFirmTable(type) {
+  const context = getFirmContext(type);
+  if (!context) return;
+  const tableBody = context.tableBody?.();
+  if (!tableBody) return;
+  const searchText = context.searchInput?.()?.value ?? '';
+  renderFirmTable(tableBody, context.store, searchText);
+}
+
+function getRelatedProjectsForFirm(type, firmName) {
+  const context = getFirmContext(type);
+  if (!context) return [];
+  const key = context.relationKey;
+  const trimmedName = firmName?.trim();
+  if (!trimmedName) return [];
+  return projectStore.filter((project) => (project[key] ?? '').trim() === trimmedName);
+}
+
+function renderFirmProfilePanel(type, firm) {
+  const context = getFirmContext(type);
+  if (!context) return;
+  const target = context.profileTarget?.();
+  if (!target) return;
+
+  if (!firm) {
+    target.innerHTML = `<p class="muted">${context.emptyMessage}</p>`;
+    return;
+  }
+
+  if (!Array.isArray(firm.ongoing)) firm.ongoing = [];
+  if (!Array.isArray(firm.completed)) firm.completed = [];
+  if (firm.notes === undefined) firm.notes = '';
+  if (firm.city === undefined || firm.city === null) firm.city = '';
+  if (firm.contact === undefined || firm.contact === null) firm.contact = '';
+  if (firm.status === undefined || firm.status === null) firm.status = '';
+  if (firm.owner === undefined || firm.owner === null) firm.owner = '';
+
+  const relatedProjects = getRelatedProjectsForFirm(type, firm.name);
+  target.innerHTML = buildFirmProfile(firm, type, relatedProjects);
+}
+
+function renderFirmProfileByName(type, firmName) {
+  const context = getFirmContext(type);
+  if (!context) return;
+  const target = context.profileTarget?.();
+  if (!target) return;
+
+  const trimmedName = firmName?.trim();
+  if (!trimmedName) {
+    target.innerHTML = `<p class="muted">${context.emptyMessage}</p>`;
+    return;
+  }
+
+  const { firm, created } = ensureFirmRecord(type, trimmedName);
+  if (!firm) {
+    target.innerHTML = `<p class="muted">${context.emptyMessage}</p>`;
+    return;
+  }
+
+  if (created) {
+    refreshFirmTable(type);
+  }
+
+  renderFirmProfilePanel(type, firm);
+}
+
 function formatCurrency(amount) {
   return amount.toLocaleString('tr-TR', {
     style: 'currency',
@@ -380,6 +503,16 @@ function getProject(projectId) {
 
 function createId(prefix) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function escapeHtml(value) {
+  if (value === undefined || value === null) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function registerDefaultLabel(form) {
@@ -607,6 +740,8 @@ function renderProjectDetail(projectId) {
   renderProducts(project);
   renderTimeline(project);
   renderLogs();
+  renderFirmProfileByName('construction', project.contractor);
+  renderFirmProfileByName('mechanical', project.mechanical);
   renderProjectTable(projectSearch?.value ?? '');
 }
 
@@ -627,6 +762,14 @@ function clearProjectDetails() {
       log.innerHTML = '<li class="muted">Proje seçiniz.</li>';
     }
   });
+  const constructionTarget = firmConfig.construction.profileTarget?.();
+  if (constructionTarget) {
+    constructionTarget.innerHTML = `<p class="muted">${firmConfig.construction.emptyMessage}</p>`;
+  }
+  const mechanicalTarget = firmConfig.mechanical.profileTarget?.();
+  if (mechanicalTarget) {
+    mechanicalTarget.innerHTML = `<p class="muted">${firmConfig.mechanical.emptyMessage}</p>`;
+  }
   resetProductForm();
   resetTimelineForm();
   resetLogForm('visit');
@@ -771,47 +914,83 @@ function activateView(target) {
 }
 
 function renderFirmTable(target, items, searchText = '') {
+  if (!target) return;
   const query = searchText.toLocaleLowerCase('tr-TR');
   target.innerHTML = items
-    .filter((item) => item.name.toLocaleLowerCase('tr-TR').includes(query))
-    .map(
-      (firm) => `
-        <tr data-firm="${firm.name}">
+    .filter((item) => (item.name ?? '').toLocaleLowerCase('tr-TR').includes(query))
+    .map((firm) => {
+      const name = firm.name ?? '';
+      const city = firm.city?.trim() || '-';
+      const contact = firm.contact?.trim() || '-';
+      const status = firm.status?.trim() || '-';
+      const owner = firm.owner?.trim() || '-';
+
+      return `
+        <tr data-firm="${escapeHtml(name)}">
           <td><button class="ghost-btn" data-action="view">Detay</button></td>
-          <td>${firm.name}</td>
-          <td>${firm.city}</td>
-          <td>${firm.contact}</td>
-          <td>${firm.status}</td>
-          <td>${firm.owner}</td>
+          <td>${escapeHtml(name)}</td>
+          <td>${escapeHtml(city)}</td>
+          <td>${escapeHtml(contact)}</td>
+          <td>${escapeHtml(status)}</td>
+          <td>${escapeHtml(owner)}</td>
         </tr>
-      `,
-    )
+      `;
+    })
     .join('');
 }
 
-function buildFirmProfile(firm) {
-  const ongoing = firm.ongoing
-    .map((item) => `<li><span>${item.category}</span><span>${item.project} (${item.units} konut)</span></li>`)
-    .join('');
-  const completed = firm.completed
-    .map((item) => `<li><span>${item.category}</span><span>${item.project} (${item.units} konut)</span></li>`)
-    .join('');
+function buildFirmProfile(firm, type, relatedProjects) {
+  const context = getFirmContext(type);
+  const label = context?.label ?? '';
+  const projectItems = relatedProjects.length
+    ? relatedProjects
+        .map(
+          (project) => `
+            <li>
+              <span>${escapeHtml(project.id)}</span>
+              <span>${escapeHtml(project.name)} • ${escapeHtml(project.city || '-')} (${escapeHtml(project.category || '-')}) • ${escapeHtml(project.salesStatus || '-')}</span>
+            </li>
+          `,
+        )
+        .join('')
+    : '<li><span>-</span><span>Bağlı proje yok</span></li>';
 
   return `
-    <h3>${firm.name}</h3>
-    <ul class="profile__list">
-      <li><span>İl</span><span>${firm.city}</span></li>
-      <li><span>Yetkili</span><span>${firm.contact}</span></li>
-      <li><span>Çalışma Durumu</span><span>${firm.status}</span></li>
-      <li><span>Sorumlu Personel</span><span>${firm.owner}</span></li>
-    </ul>
-    <div class="profile__group">
-      <h4>Devam Eden Projeler</h4>
-      <ul class="profile__list">${ongoing || '<li><span>-</span><span>Bilgi yok</span></li>'}</ul>
+    <div class="profile__header">
+      <h3>${escapeHtml(firm.name)}</h3>
+      <p class="muted">${escapeHtml(label)} firması bilgilerini görüntüleyin ve güncelleyin.</p>
     </div>
+    <form class="profile-form" data-firm-type="${type}" data-firm-name="${escapeHtml(firm.name)}">
+      <div class="profile-form__grid">
+        <label>
+          <span>İl</span>
+          <input type="text" name="firmCity" value="${escapeHtml(firm.city ?? '')}" placeholder="İl" />
+        </label>
+        <label>
+          <span>Yetkili</span>
+          <input type="text" name="firmContact" value="${escapeHtml(firm.contact ?? '')}" placeholder="Yetkili kişi" />
+        </label>
+        <label>
+          <span>Çalışma Durumu</span>
+          <input type="text" name="firmStatus" value="${escapeHtml(firm.status ?? '')}" placeholder="Durum" />
+        </label>
+        <label>
+          <span>Sorumlu Personel</span>
+          <input type="text" name="firmOwner" value="${escapeHtml(firm.owner ?? '')}" placeholder="Sorumlu" />
+        </label>
+        <label class="full-width">
+          <span>Notlar</span>
+          <textarea name="firmNotes" rows="2" placeholder="Ek notlar">${escapeHtml(firm.notes ?? '')}</textarea>
+        </label>
+      </div>
+      <div class="form-actions">
+        <span class="form-feedback" data-role="feedback"></span>
+        <button type="submit" class="primary-btn">Bilgileri Güncelle</button>
+      </div>
+    </form>
     <div class="profile__group">
-      <h4>Tamamlanan Projeler</h4>
-      <ul class="profile__list">${completed || '<li><span>-</span><span>Bilgi yok</span></li>'}</ul>
+      <h4>Bağlı Projeler</h4>
+      <ul class="profile__list">${projectItems}</ul>
     </div>
   `;
 }
@@ -1213,7 +1392,7 @@ function setupFirmSelection() {
     if (!row) return;
     const firm = constructionFirms.find((item) => item.name === row.dataset.firm);
     if (!firm) return;
-    constructionProfile.innerHTML = buildFirmProfile(firm);
+    renderFirmProfilePanel('construction', firm);
   });
 
   mechanicalTableBody.addEventListener('click', (event) => {
@@ -1223,7 +1402,56 @@ function setupFirmSelection() {
     if (!row) return;
     const firm = mechanicalFirms.find((item) => item.name === row.dataset.firm);
     if (!firm) return;
-    mechanicalProfile.innerHTML = buildFirmProfile(firm);
+    renderFirmProfilePanel('mechanical', firm);
+  });
+}
+
+function setupFirmProfileForms() {
+  [constructionProfile, mechanicalProfile].forEach((profile) => {
+    profile?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (!(event.target instanceof HTMLFormElement)) return;
+      const form = event.target;
+      const firmType = form.dataset.firmType;
+      const firmName = form.dataset.firmName;
+      if (!firmType || !firmName) return;
+      const context = getFirmContext(firmType);
+      if (!context) return;
+      const firm = context.store.find((item) => item.name === firmName);
+      if (!firm) return;
+
+      const city = form.elements.namedItem('firmCity')?.value?.trim() ?? '';
+      const contact = form.elements.namedItem('firmContact')?.value?.trim() ?? '';
+      const status = form.elements.namedItem('firmStatus')?.value?.trim() ?? '';
+      const owner = form.elements.namedItem('firmOwner')?.value?.trim() ?? '';
+      const notes = form.elements.namedItem('firmNotes')?.value?.trim() ?? '';
+
+      firm.city = city;
+      firm.contact = contact;
+      firm.status = status;
+      firm.owner = owner;
+      firm.notes = notes;
+
+      setFormValue(form, 'firmCity', firm.city);
+      setFormValue(form, 'firmContact', firm.contact);
+      setFormValue(form, 'firmStatus', firm.status);
+      setFormValue(form, 'firmOwner', firm.owner);
+      setFormValue(form, 'firmNotes', firm.notes);
+
+      refreshFirmTable(firmType);
+
+      const feedback = form.querySelector('[data-role="feedback"]');
+      if (feedback) {
+        feedback.textContent = 'Bilgiler güncellendi';
+        feedback.classList.add('is-visible');
+        window.setTimeout(() => {
+          if (feedback.textContent === 'Bilgiler güncellendi') {
+            feedback.textContent = '';
+            feedback.classList.remove('is-visible');
+          }
+        }, 2000);
+      }
+    });
   });
 }
 
@@ -1273,6 +1501,7 @@ function init() {
   setupNavigation();
   setupProjectSelection();
   setupFirmSelection();
+  setupFirmProfileForms();
   setupForms();
   setupSearch();
   setupModal();

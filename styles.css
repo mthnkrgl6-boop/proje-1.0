@@ -684,9 +684,50 @@ form .full-width {
   box-shadow: 0 20px 32px rgba(31, 60, 136, 0.08);
 }
 
+.profile__header {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 1.25rem;
+}
+
+.profile__header h3 {
+  margin: 0;
+}
+
+.profile__header .muted {
+  font-size: 0.85rem;
+}
+
 .profile h3 {
   color: var(--navy);
   margin-bottom: 0.75rem;
+}
+
+.profile-form {
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.profile-form__grid {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.profile-form .form-actions {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.profile .form-feedback {
+  color: var(--muted);
+  font-size: 0.85rem;
+  min-height: 1em;
+  flex: 1;
+}
+
+.profile .form-feedback.is-visible {
+  color: var(--orange-dark);
 }
 
 .profile__list {
