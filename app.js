@@ -140,6 +140,177 @@ let projectFormMode = null;
 const defaultSubmitLabels = new Map();
 const logForms = {};
 
+const STORAGE_KEY = 'kalde-panel-state';
+let persistStateTimer = null;
+let storageSupported = null;
+
+function isStorageSupported() {
+  if (storageSupported !== null) {
+    return storageSupported;
+  }
+  if (typeof window === 'undefined' || !window.localStorage) {
+    storageSupported = false;
+    return storageSupported;
+  }
+  try {
+    const testKey = '__storage_test__';
+    window.localStorage.setItem(testKey, '1');
+    window.localStorage.removeItem(testKey);
+    storageSupported = true;
+  } catch (error) {
+    console.warn('Local storage is not available', error);
+    storageSupported = false;
+  }
+  return storageSupported;
+}
+
+function clonePlainList(items) {
+  if (!Array.isArray(items)) return [];
+  return items.map((item) => (item && typeof item === 'object' ? { ...item } : item));
+}
+
+function cloneAttachments(attachments) {
+  if (!Array.isArray(attachments)) return [];
+  return attachments.map((attachment) => {
+    if (!attachment || typeof attachment !== 'object') return null;
+    const { file, url, ...rest } = attachment;
+    return { ...rest };
+  }).filter(Boolean);
+}
+
+function cloneProject(project) {
+  if (!project || typeof project !== 'object') return null;
+  const cloned = {
+    ...project,
+    products: clonePlainList(project.products),
+    timeline: clonePlainList(project.timeline),
+    visits: clonePlainList(project.visits),
+    offers: clonePlainList(project.offers),
+    payments: clonePlainList(project.payments),
+  };
+  ensureProjectCollections(cloned);
+  return cloned;
+}
+
+function cloneFirm(firm) {
+  if (!firm || typeof firm !== 'object') return null;
+  return {
+    ...firm,
+    ongoing: clonePlainList(firm.ongoing),
+    completed: clonePlainList(firm.completed),
+  };
+}
+
+function cloneRequest(request) {
+  if (!request || typeof request !== 'object') return null;
+  return {
+    ...request,
+    attachments: cloneAttachments(request.attachments),
+  };
+}
+
+function getAppStateSnapshot() {
+  return {
+    users: clonePlainList(userStore),
+    projects: projectStore.map(cloneProject).filter(Boolean),
+    constructionFirms: constructionFirms.map(cloneFirm).filter(Boolean),
+    mechanicalFirms: mechanicalFirms.map(cloneFirm).filter(Boolean),
+    requests: requestStore.map(cloneRequest).filter(Boolean),
+    selectedProjectId,
+    currentUserId: currentUser?.id ?? null,
+  };
+}
+
+function persistAppStateNow() {
+  if (!isStorageSupported()) return;
+  try {
+    const snapshot = getAppStateSnapshot();
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+  } catch (error) {
+    console.error('State persistence failed', error);
+  }
+}
+
+function schedulePersistState() {
+  if (!isStorageSupported()) return;
+  if (persistStateTimer) {
+    window.clearTimeout(persistStateTimer);
+  }
+  persistStateTimer = window.setTimeout(() => {
+    persistStateTimer = null;
+    persistAppStateNow();
+  }, 200);
+}
+
+function normalizeFirmRecord(record) {
+  if (!record || typeof record !== 'object') return null;
+  const firm = cloneFirm(record);
+  if (!Array.isArray(firm.ongoing)) firm.ongoing = [];
+  if (!Array.isArray(firm.completed)) firm.completed = [];
+  return firm;
+}
+
+function normalizeProjectRecord(record) {
+  if (!record || typeof record !== 'object') return null;
+  const project = cloneProject(record);
+  if (!project.id) return null;
+  ensureProjectCollections(project);
+  project.salesStatus = project.salesStatus || deriveSalesStatus(project);
+  return project;
+}
+
+function normalizeRequestRecord(record) {
+  if (!record || typeof record !== 'object') return null;
+  const request = cloneRequest(record);
+  request.attachments = cloneAttachments(request.attachments);
+  return request;
+}
+
+function loadPersistedState() {
+  if (!isStorageSupported()) return;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+
+    if (Array.isArray(data.users) && data.users.length) {
+      userStore.splice(0, userStore.length, ...data.users.map((user) => ({ ...user })));
+    }
+
+    if (Array.isArray(data.projects) && data.projects.length) {
+      const projects = data.projects.map(normalizeProjectRecord).filter(Boolean);
+      projectStore.splice(0, projectStore.length, ...projects);
+    }
+
+    if (Array.isArray(data.constructionFirms)) {
+      const firms = data.constructionFirms.map(normalizeFirmRecord).filter(Boolean);
+      constructionFirms.splice(0, constructionFirms.length, ...firms);
+    }
+
+    if (Array.isArray(data.mechanicalFirms)) {
+      const firms = data.mechanicalFirms.map(normalizeFirmRecord).filter(Boolean);
+      mechanicalFirms.splice(0, mechanicalFirms.length, ...firms);
+    }
+
+    if (Array.isArray(data.requests)) {
+      const requests = data.requests.map(normalizeRequestRecord).filter(Boolean);
+      requestStore.splice(0, requestStore.length, ...requests);
+    }
+
+    if (data.currentUserId) {
+      currentUser = userStore.find((user) => user.id === data.currentUserId) ?? null;
+    }
+
+    if (data.selectedProjectId && projectStore.some((project) => project.id === data.selectedProjectId)) {
+      selectedProjectId = data.selectedProjectId;
+    } else {
+      selectedProjectId = projectStore[0]?.id ?? null;
+    }
+  } catch (error) {
+    console.error('State load failed', error);
+  }
+}
+
 const PROJECT_FIELD_ALIASES = {
   id: ['proje kodu', 'proje id', 'id', 'kod', 'referans'],
   name: ['proje adı', 'proje adi', 'adı', 'adi', 'ad', 'project name', 'proje'],
@@ -238,8 +409,8 @@ function getActiveUsers() {
 
 function findUserByEmail(value) {
   if (!value) return undefined;
-  const normalized = value.trim().toLocaleLowerCase('tr-TR');
-  return getActiveUsers().find((user) => user.email.toLocaleLowerCase('tr-TR') === normalized);
+  const normalized = value.trim().toLocaleLowerCase('en-US');
+  return getActiveUsers().find((user) => user.email.toLocaleLowerCase('en-US') === normalized);
 }
 
 function populateStaffSelect(select, selectedValue = '') {
@@ -469,6 +640,7 @@ function ensureFirmRecord(type, name) {
     };
     store.push(firm);
     created = true;
+    schedulePersistState();
   } else {
     if (!Array.isArray(firm.ongoing)) firm.ongoing = [];
     if (!Array.isArray(firm.completed)) firm.completed = [];
@@ -563,6 +735,7 @@ function renderFirmProfileByName(type, firmName) {
 
   if (created) {
     refreshFirmTable(type);
+    schedulePersistState();
   }
 
   renderFirmProfilePanel(type, firm);
@@ -588,6 +761,7 @@ function finalizeFirmDeletion(type, firmName) {
   }
 
   renderAssignments();
+  schedulePersistState();
   return true;
 }
 
@@ -781,6 +955,7 @@ function triggerAttachmentPicker(requestId) {
         if (!Array.isArray(request.attachments)) request.attachments = [];
         request.attachments.push(...newAttachments);
         renderRequests();
+        schedulePersistState();
       }
     }
     input.remove();
@@ -796,6 +971,7 @@ function removeAttachmentFromRequest(requestId, attachmentId) {
   const [removed] = request.attachments.splice(index, 1);
   releaseAttachment(removed);
   renderRequests();
+  schedulePersistState();
 }
 
 function registerDefaultLabel(form) {
@@ -1039,6 +1215,7 @@ function renderProjectDetail(projectId) {
     if (projectSelector) projectSelector.value = '';
     clearProjectDetails();
     renderProjectTable(projectSearch?.value ?? '');
+    schedulePersistState();
     return;
   }
 
@@ -1083,6 +1260,7 @@ function renderProjectDetail(projectId) {
   renderFirmProfileByName('construction', project.contractor);
   renderFirmProfileByName('mechanical', project.mechanical);
   renderProjectTable(projectSearch?.value ?? '');
+  schedulePersistState();
 }
 
 function clearProjectDetails() {
@@ -1313,6 +1491,7 @@ function applyImportedProjectRows(rows) {
   }
 
   renderAssignments();
+  schedulePersistState();
   return { created, updated };
 }
 
@@ -1986,6 +2165,7 @@ function deleteRequest(requestId) {
     resetRequestForm();
   }
   renderRequests();
+  schedulePersistState();
   return true;
 }
 
@@ -2033,6 +2213,7 @@ function setupForms() {
       clearProjectDetails();
     }
     renderAssignments();
+    schedulePersistState();
   });
 
   projectSelector?.addEventListener('change', (event) => {
@@ -2136,6 +2317,7 @@ function setupForms() {
     renderProjectTable(projectSearch?.value ?? '');
     renderProjectDetail(selectedProjectId);
     renderAssignments();
+    schedulePersistState();
   });
 
   productForm?.addEventListener('submit', (event) => {
@@ -2163,6 +2345,7 @@ function setupForms() {
 
     resetProductForm();
     renderProducts(project);
+    schedulePersistState();
   });
 
   productForm?.querySelector('[data-action="cancel-product"]')?.addEventListener('click', () => {
@@ -2191,6 +2374,7 @@ function setupForms() {
 
     resetTimelineForm();
     renderTimeline(project);
+    schedulePersistState();
   });
 
   timelineForm?.querySelector('[data-action="cancel-timeline"]')?.addEventListener('click', () => {
@@ -2257,6 +2441,7 @@ function setupForms() {
 
     resetRequestForm();
     renderRequests();
+    schedulePersistState();
   });
 
   requestForm?.querySelector('[data-action="cancel-request"]')?.addEventListener('click', () => {
@@ -2336,6 +2521,7 @@ function setupForms() {
       resetLogForm(type);
       renderLogs(project);
       refreshProjectStatus(project);
+      schedulePersistState();
     });
 
     form.querySelector('[data-action="cancel-log"]')?.addEventListener('click', () => {
@@ -2369,6 +2555,7 @@ function setupForms() {
           resetProductForm();
         }
         renderProducts(project);
+        schedulePersistState();
       }
     });
   }
@@ -2397,6 +2584,7 @@ function setupForms() {
         resetTimelineForm();
       }
       renderTimeline(project);
+      schedulePersistState();
     }
   });
 
@@ -2440,6 +2628,7 @@ function setupForms() {
         }
         renderLogs(project);
         refreshProjectStatus(project);
+        schedulePersistState();
       }
     });
   });
@@ -2547,6 +2736,7 @@ function setupFirmProfileForms() {
       refreshFirmTable(firmType);
       renderAssignments();
       showFormFeedback(form, 'Bilgiler güncellendi');
+      schedulePersistState();
     });
 
     profile?.addEventListener('click', (event) => {
@@ -2608,6 +2798,7 @@ function setupFirmProfileForms() {
       renderAssignments();
       renderFirmProfilePanel(firmType, firm);
       showFormFeedback(formElement, created ? 'Firma kaydı oluşturuldu' : 'Firma bilgileri güncellendi');
+      schedulePersistState();
 
       if (created) {
         formElement.reset();
@@ -2784,6 +2975,76 @@ function closeUserModal() {
   clearUserModalFeedback();
 }
 
+function shouldUppercaseInput(element) {
+  if (element instanceof HTMLTextAreaElement) {
+    return true;
+  }
+  if (element instanceof HTMLInputElement) {
+    const type = element.type?.toLowerCase?.() ?? '';
+    return ['text', 'search', 'email', 'url', 'tel'].includes(type);
+  }
+  return false;
+}
+
+function getUppercasedValue(element, value) {
+  if (element instanceof HTMLInputElement) {
+    const type = element.type?.toLowerCase?.() ?? '';
+    if (type === 'email' || type === 'url') {
+      return value.toUpperCase();
+    }
+  }
+  return value.toLocaleUpperCase('tr-TR');
+}
+
+function transformInputToUppercase(element) {
+  const currentValue = element.value ?? '';
+  const uppercased = getUppercasedValue(element, currentValue);
+  if (currentValue === uppercased) return;
+
+  let selectionStart = null;
+  let selectionEnd = null;
+  try {
+    selectionStart = element.selectionStart;
+    selectionEnd = element.selectionEnd;
+  } catch (error) {
+    selectionStart = null;
+    selectionEnd = null;
+  }
+  element.value = uppercased;
+  if (typeof element.setSelectionRange === 'function' && selectionStart !== null && selectionEnd !== null) {
+    const lengthDelta = uppercased.length - currentValue.length;
+    const nextStart = selectionStart + lengthDelta;
+    const nextEnd = selectionEnd + lengthDelta;
+    window.requestAnimationFrame(() => {
+      element.setSelectionRange(nextStart, nextEnd);
+    });
+  }
+}
+
+function setupUppercaseInputs() {
+  const handleEvent = (event) => {
+    const target = event.target;
+    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+      if (shouldUppercaseInput(target)) {
+        transformInputToUppercase(target);
+      }
+    }
+  };
+
+  document.addEventListener('input', handleEvent);
+  document.addEventListener('change', handleEvent);
+
+  document
+    .querySelectorAll('input[type="text"], input[type="search"], input[type="email"], input[type="url"], input[type="tel"], textarea')
+    .forEach((element) => {
+      if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+        if (shouldUppercaseInput(element)) {
+          transformInputToUppercase(element);
+        }
+      }
+    });
+}
+
 function updateAuthUI() {
   const authenticated = Boolean(currentUser);
   document.body.classList.toggle('is-authenticated', authenticated);
@@ -2827,6 +3088,7 @@ function setupAuth() {
     updateAuthUI();
     resetProjectForm();
     resetRequestForm();
+    schedulePersistState();
   });
 
   logoutBtn?.addEventListener('click', () => {
@@ -2834,6 +3096,7 @@ function setupAuth() {
     updateAuthUI();
     resetProjectForm();
     resetRequestForm();
+    schedulePersistState();
   });
 
   userAdminBtn?.addEventListener('click', () => {
@@ -2865,7 +3128,7 @@ function setupAuth() {
         return;
       }
 
-      const normalizedEmail = email.toLocaleLowerCase('tr-TR');
+      const normalizedEmail = email.toLocaleLowerCase('en-US');
       const existing = findUserByEmail(normalizedEmail);
       if (existing) {
         showFormFeedback(userForm, 'Bu kullanıcı adı zaten tanımlı.');
@@ -2887,6 +3150,7 @@ function setupAuth() {
       renderUserTable();
       refreshStaffSelectors();
       updateAuthUI();
+      schedulePersistState();
     });
   }
 
@@ -2915,6 +3179,7 @@ function setupAuth() {
     refreshStaffSelectors();
     updateAuthUI();
     showUserModalFeedback('Rol güncellendi.');
+    schedulePersistState();
   });
 
   userTableBody?.addEventListener('click', (event) => {
@@ -2931,6 +3196,7 @@ function setupAuth() {
       if (!newPassword) return;
       user.password = newPassword;
       showUserModalFeedback('Şifre güncellendi.');
+      schedulePersistState();
     }
   });
 
@@ -2957,8 +3223,10 @@ function init() {
   setupSearch();
   setupProjectImportExport();
   setupModal();
+  setupUppercaseInputs();
   activateView('project-pool');
 }
 
+loadPersistedState();
 setupAuth();
 init();
