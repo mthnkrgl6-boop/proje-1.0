@@ -238,8 +238,8 @@ function getActiveUsers() {
 
 function findUserByEmail(value) {
   if (!value) return undefined;
-  const normalized = value.trim().toLocaleLowerCase('tr-TR');
-  return getActiveUsers().find((user) => user.email.toLocaleLowerCase('tr-TR') === normalized);
+  const normalized = value.trim().toLocaleLowerCase('en-US');
+  return getActiveUsers().find((user) => user.email.toLocaleLowerCase('en-US') === normalized);
 }
 
 function populateStaffSelect(select, selectedValue = '') {
@@ -2784,6 +2784,76 @@ function closeUserModal() {
   clearUserModalFeedback();
 }
 
+function shouldUppercaseInput(element) {
+  if (element instanceof HTMLTextAreaElement) {
+    return true;
+  }
+  if (element instanceof HTMLInputElement) {
+    const type = element.type?.toLowerCase?.() ?? '';
+    return ['text', 'search', 'email', 'url', 'tel'].includes(type);
+  }
+  return false;
+}
+
+function getUppercasedValue(element, value) {
+  if (element instanceof HTMLInputElement) {
+    const type = element.type?.toLowerCase?.() ?? '';
+    if (type === 'email' || type === 'url') {
+      return value.toUpperCase();
+    }
+  }
+  return value.toLocaleUpperCase('tr-TR');
+}
+
+function transformInputToUppercase(element) {
+  const currentValue = element.value ?? '';
+  const uppercased = getUppercasedValue(element, currentValue);
+  if (currentValue === uppercased) return;
+
+  let selectionStart = null;
+  let selectionEnd = null;
+  try {
+    selectionStart = element.selectionStart;
+    selectionEnd = element.selectionEnd;
+  } catch (error) {
+    selectionStart = null;
+    selectionEnd = null;
+  }
+  element.value = uppercased;
+  if (typeof element.setSelectionRange === 'function' && selectionStart !== null && selectionEnd !== null) {
+    const lengthDelta = uppercased.length - currentValue.length;
+    const nextStart = selectionStart + lengthDelta;
+    const nextEnd = selectionEnd + lengthDelta;
+    window.requestAnimationFrame(() => {
+      element.setSelectionRange(nextStart, nextEnd);
+    });
+  }
+}
+
+function setupUppercaseInputs() {
+  const handleEvent = (event) => {
+    const target = event.target;
+    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+      if (shouldUppercaseInput(target)) {
+        transformInputToUppercase(target);
+      }
+    }
+  };
+
+  document.addEventListener('input', handleEvent);
+  document.addEventListener('change', handleEvent);
+
+  document
+    .querySelectorAll('input[type="text"], input[type="search"], input[type="email"], input[type="url"], input[type="tel"], textarea')
+    .forEach((element) => {
+      if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+        if (shouldUppercaseInput(element)) {
+          transformInputToUppercase(element);
+        }
+      }
+    });
+}
+
 function updateAuthUI() {
   const authenticated = Boolean(currentUser);
   document.body.classList.toggle('is-authenticated', authenticated);
@@ -2865,7 +2935,7 @@ function setupAuth() {
         return;
       }
 
-      const normalizedEmail = email.toLocaleLowerCase('tr-TR');
+      const normalizedEmail = email.toLocaleLowerCase('en-US');
       const existing = findUserByEmail(normalizedEmail);
       if (existing) {
         showFormFeedback(userForm, 'Bu kullanıcı adı zaten tanımlı.');
@@ -2957,6 +3027,7 @@ function init() {
   setupSearch();
   setupProjectImportExport();
   setupModal();
+  setupUppercaseInputs();
   activateView('project-pool');
 }
 
