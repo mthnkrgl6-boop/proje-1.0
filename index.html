@@ -104,9 +104,19 @@
       <section class="table-wrapper">
         <header class="section-header">
           <h2>Proje Veri Havuzu</h2>
-          <div class="legend">
-            <span><span class="legend-dot direct"></span>Doğrudan</span>
-            <span><span class="legend-dot dealer"></span>Bayi</span>
+          <div class="section-header__controls">
+            <div class="legend">
+              <span><span class="legend-dot direct"></span>Doğrudan</span>
+              <span><span class="legend-dot dealer"></span>Bayi</span>
+            </div>
+            <div class="table-toolbar">
+              <div class="table-toolbar__buttons">
+                <input type="file" id="projectImportInput" accept=".xlsx,.xls" hidden />
+                <button class="ghost-btn" id="projectImportBtn">Excel'den İçe Aktar</button>
+                <button class="ghost-btn" id="projectExportBtn">Excel'e Aktar</button>
+              </div>
+              <span class="table-feedback" id="projectImportFeedback" aria-live="polite"></span>
+            </div>
           </div>
         </header>
         <table>
@@ -683,6 +693,7 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

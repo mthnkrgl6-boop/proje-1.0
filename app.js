@@ -40,9 +40,14 @@ const projectForm = document.getElementById('projectForm');
 const productForm = document.getElementById('productForm');
 const timelineForm = document.getElementById('timelineForm');
 const requestForm = document.getElementById('requestForm');
+const projectImportBtn = document.getElementById('projectImportBtn');
+const projectExportBtn = document.getElementById('projectExportBtn');
+const projectImportInput = document.getElementById('projectImportInput');
+const projectImportFeedback = document.getElementById('projectImportFeedback');
 
 const feedbackTimers = new WeakMap();
 let userModalFeedbackTimer = null;
+let projectImportFeedbackTimer = null;
 
 const ROLE_LABELS = {
   manager: 'Yönetici',
@@ -135,6 +140,90 @@ let projectFormMode = null;
 const defaultSubmitLabels = new Map();
 const logForms = {};
 
+const PROJECT_FIELD_ALIASES = {
+  id: ['proje kodu', 'proje id', 'id', 'kod', 'referans'],
+  name: ['proje adı', 'proje adi', 'adı', 'adi', 'ad', 'project name', 'proje'],
+  category: ['kategori', 'proje kategorisi'],
+  city: ['il', 'şehir', 'sehir', 'city', 'lokasyon', 'lokasyon ili'],
+  addedAt: [
+    'eklenme tarihi',
+    'eklenme',
+    'kayıt tarihi',
+    'kayit tarihi',
+    'oluşturulma tarihi',
+    'olusturulma tarihi',
+    'olusturma tarihi',
+    'oluşturma tarihi',
+    'başlangıç tarihi',
+    'baslangic tarihi',
+  ],
+  updatedAt: [
+    'son işlem tarihi',
+    'son islem tarihi',
+    'son güncelleme',
+    'son guncelleme',
+    'güncelleme tarihi',
+    'guncelleme tarihi',
+    'güncel tarih',
+    'guncel tarih',
+    'son durum tarihi',
+  ],
+  contractor: ['yüklenici', 'yuklenici', 'inşaat firması', 'insaat firmasi', 'inşaat', 'insaat'],
+  mechanical: ['mekanik yüklenici', 'mekanik firma', 'mekanik', 'mekanik taşeron', 'mekanik taseron'],
+  manager: [
+    'proje sorumlusu',
+    'temsilci',
+    'proje temsilcisi',
+    'proje yöneticisi',
+    'proje yoneticisi',
+    'sorumlu kişi',
+    'sorumlu kisi',
+  ],
+  channel: [
+    'bağlantı türü',
+    'baglanti turu',
+    'kanal türü',
+    'kanal turu',
+    'kanal tipi',
+    'satış kanalı',
+    'satis kanali',
+    'iletişim kanalı',
+    'iletisim kanali',
+  ],
+  channelName: ['bayi / kanal', 'bayi', 'kanal adı', 'kanal adi', 'bayi adı', 'bayi adi', 'kanal'],
+  scope: ['kapsam', 'proje kapsamı', 'proje kapsami'],
+  responsibleInstitution: ['sorumlu kurum', 'kurum', 'kuruluş', 'kurulus', 'idare'],
+  assignedTeam: ['atanan ekip', 'ekip', 'takım', 'takim'],
+  progress: ['ilerleme notu', 'ilerleme', 'not', 'açıklama', 'aciklama', 'durum notu'],
+  salesStatus: ['satış durumu', 'satis durumu'],
+};
+
+const PROJECT_EXPORT_HEADERS = [
+  'Proje Kodu',
+  'Proje Adı',
+  'Kategori',
+  'İl',
+  'Eklenme Tarihi',
+  'Son Güncelleme',
+  'Bağlantı Türü',
+  'Bayi / Kanal',
+  'Yüklenici',
+  'Mekanik Yüklenici',
+  'Proje Sorumlusu',
+  'Satış Durumu',
+  'Sorumlu Kurum',
+  'Atanan Ekip',
+  'Kapsam',
+  'İlerleme Notu',
+  'Süreç Kayıtları',
+  'Ürünler',
+  'Teklif Kayıtları',
+  'Tahsilat Kayıtları',
+  'Ziyaret Kayıtları',
+  'Toplam Teklif',
+  'Toplam Tahsilat',
+];
+
 function getRoleLabel(role) {
   return ROLE_LABELS[role] ?? ROLE_LABELS.standard;
 }
@@ -193,6 +282,134 @@ function refreshStaffSelectors() {
   document
     .querySelectorAll('select[data-staff-select]')
     .forEach((select) => populateStaffSelect(select, select.value || ''));
+}
+
+function normalizeHeaderValue(value) {
+  if (value === undefined || value === null) return '';
+  return String(value)
+    .toLocaleLowerCase('tr-TR')
+    .replace(/[()]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function resolveProjectField(header) {
+  const normalized = normalizeHeaderValue(header);
+  if (!normalized) return null;
+  return (
+    Object.entries(PROJECT_FIELD_ALIASES).find(([, aliases]) => aliases.includes(normalized))?.[0] ?? null
+  );
+}
+
+function sanitizeText(value) {
+  if (value === undefined || value === null) return '';
+  return String(value).trim();
+}
+
+function normalizeChannelValue(value) {
+  const text = sanitizeText(value).toLocaleLowerCase('tr-TR');
+  if (!text) return 'direct';
+  if (text.includes('bayi') || text.includes('dealer') || text.includes('aracı') || text.includes('araci')) {
+    return 'dealer';
+  }
+  if (text.includes('direct') || text.includes('doğrudan') || text.includes('dogrudan')) {
+    return 'direct';
+  }
+  return text === 'dealer' ? 'dealer' : 'direct';
+}
+
+function normalizeDateCell(value) {
+  if (value === undefined || value === null || value === '') return '';
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    if (typeof XLSX !== 'undefined' && XLSX?.SSF?.format) {
+      try {
+        const formatted = XLSX.SSF.format('yyyy-mm-dd', value);
+        if (formatted) {
+          const match = formatted.match(/\d{4}-\d{2}-\d{2}/);
+          if (match) return match[0];
+        }
+      } catch (error) {
+        // Ignore and fall back to manual conversion.
+      }
+    }
+
+    const epoch = new Date(Math.round((value - 25569) * 86400 * 1000));
+    if (!Number.isNaN(epoch.getTime())) {
+      return epoch.toISOString().slice(0, 10);
+    }
+  }
+
+  const text = sanitizeText(value);
+  if (!text) return '';
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    return text;
+  }
+
+  const parts = text.split(/[./]/).map((part) => part.trim());
+  if (parts.length === 3) {
+    const [part1, part2, part3] = parts;
+    if (part1.length && part2.length && part3.length) {
+      let day = part1;
+      let month = part2;
+      let year = part3;
+      if (day.length <= 2 && month.length <= 2) {
+        if (year.length === 2) {
+          year = `20${year}`;
+        }
+        if (year.length === 4) {
+          return `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        }
+      }
+    }
+  }
+
+  const parsed = new Date(text);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().slice(0, 10);
+  }
+
+  return text;
+}
+
+function ensureProjectCollections(project) {
+  if (!project) return;
+  if (!Array.isArray(project.products)) project.products = [];
+  if (!Array.isArray(project.timeline)) project.timeline = [];
+  if (!Array.isArray(project.visits)) project.visits = [];
+  if (!Array.isArray(project.offers)) project.offers = [];
+  if (!Array.isArray(project.payments)) project.payments = [];
+}
+
+function clearProjectImportFeedback() {
+  if (!projectImportFeedback) return;
+  if (projectImportFeedbackTimer) {
+    window.clearTimeout(projectImportFeedbackTimer);
+    projectImportFeedbackTimer = null;
+  }
+  projectImportFeedback.textContent = '';
+  projectImportFeedback.classList.remove('is-visible');
+  if (projectImportFeedback.dataset) {
+    delete projectImportFeedback.dataset.tone;
+  }
+}
+
+function showProjectImportFeedback(message, tone = 'success', timeout = 4000) {
+  if (!projectImportFeedback) return;
+  clearProjectImportFeedback();
+  projectImportFeedback.textContent = message;
+  projectImportFeedback.dataset.tone = tone;
+  projectImportFeedback.classList.add('is-visible');
+  if (timeout > 0) {
+    projectImportFeedbackTimer = window.setTimeout(() => {
+      clearProjectImportFeedback();
+    }, timeout);
+  }
 }
 
 function updateRequestFormAccess() {
@@ -900,6 +1117,296 @@ function clearProjectDetails() {
   resetLogForm('payment');
 }
 
+async function importProjectsFromFile(file) {
+  if (!file) {
+    throw new Error('İçe aktarılacak dosya bulunamadı.');
+  }
+  if (typeof XLSX === 'undefined') {
+    throw new Error('Excel modülü yüklenemedi.');
+  }
+
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: 'array' });
+  const sheetName = workbook.SheetNames?.[0];
+  if (!sheetName) {
+    throw new Error('Excel dosyasında sayfa bulunamadı.');
+  }
+
+  const sheet = workbook.Sheets?.[sheetName];
+  if (!sheet) {
+    throw new Error('Excel sayfası okunamadı.');
+  }
+
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+  return applyImportedProjectRows(rows);
+}
+
+function applyImportedProjectRows(rows) {
+  if (!Array.isArray(rows) || !rows.length) {
+    throw new Error('Excel dosyası boş görünüyor.');
+  }
+
+  const headerRow = Array.isArray(rows[0]) ? rows[0] : Object.values(rows[0] ?? {});
+  const headerFields = headerRow.map((cell) => resolveProjectField(cell));
+
+  if (!headerFields.some(Boolean)) {
+    throw new Error('Excel başlıkları tanınmadı. Lütfen şablonu güncelleyin.');
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  let created = 0;
+  let updated = 0;
+  const processedIds = [];
+  const processedSet = new Set();
+  let refreshConstruction = false;
+  let refreshMechanical = false;
+
+  const trackProcessedId = (id) => {
+    if (!id || processedSet.has(id)) return;
+    processedSet.add(id);
+    processedIds.push(id);
+  };
+
+  for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
+    const rawRow = rows[rowIndex];
+    const cells = Array.isArray(rawRow) ? rawRow : Object.values(rawRow ?? {});
+    if (!cells.length) continue;
+    if (!cells.some((cell) => sanitizeText(cell))) continue;
+
+    const record = {};
+    headerFields.forEach((field, columnIndex) => {
+      if (!field) return;
+      const cell = cells[columnIndex];
+      if (field === 'addedAt' || field === 'updatedAt') {
+        record[field] = normalizeDateCell(cell);
+      } else if (field === 'channel') {
+        record[field] = normalizeChannelValue(cell);
+      } else {
+        record[field] = sanitizeText(cell);
+      }
+    });
+
+    let id = sanitizeText(record.id);
+    const name = sanitizeText(record.name);
+
+    if (!id && name) {
+      id = createId('proj');
+      while (getProject(id)) {
+        id = createId('proj');
+      }
+    }
+
+    if (!id && !name) {
+      continue;
+    }
+
+    const payload = {
+      id,
+      name: name || id,
+      category: sanitizeText(record.category) || 'Özel',
+      city: sanitizeText(record.city),
+      addedAt: record.addedAt || today,
+      updatedAt: record.updatedAt || record.addedAt || today,
+      contractor: sanitizeText(record.contractor),
+      mechanical: sanitizeText(record.mechanical),
+      manager: sanitizeText(record.manager),
+      channel: record.channel || 'direct',
+      channelName: sanitizeText(record.channelName),
+      scope: sanitizeText(record.scope),
+      responsibleInstitution: sanitizeText(record.responsibleInstitution),
+      assignedTeam: sanitizeText(record.assignedTeam),
+      progress: sanitizeText(record.progress),
+      salesStatus: sanitizeText(record.salesStatus),
+    };
+
+    if (payload.channel !== 'dealer') {
+      payload.channelName = '';
+    }
+
+    const existing = getProject(payload.id);
+    if (existing) {
+      existing.name = payload.name;
+      existing.category = payload.category;
+      existing.city = payload.city;
+      existing.addedAt = payload.addedAt;
+      existing.updatedAt = payload.updatedAt;
+      existing.contractor = payload.contractor;
+      existing.mechanical = payload.mechanical;
+      existing.manager = payload.manager;
+      existing.channel = payload.channel;
+      existing.channelName = payload.channelName;
+      existing.scope = payload.scope;
+      existing.responsibleInstitution = payload.responsibleInstitution;
+      existing.assignedTeam = payload.assignedTeam;
+      existing.progress = payload.progress;
+      if (payload.salesStatus) {
+        existing.salesStatus = payload.salesStatus;
+      }
+      ensureProjectCollections(existing);
+      existing.salesStatus = deriveSalesStatus(existing);
+      updated += 1;
+      trackProcessedId(existing.id);
+    } else {
+      const newProject = {
+        id: payload.id,
+        name: payload.name,
+        category: payload.category,
+        city: payload.city,
+        addedAt: payload.addedAt,
+        updatedAt: payload.updatedAt,
+        contractor: payload.contractor,
+        mechanical: payload.mechanical,
+        manager: payload.manager,
+        channel: payload.channel,
+        channelName: payload.channelName,
+        scope: payload.scope,
+        responsibleInstitution: payload.responsibleInstitution,
+        assignedTeam: payload.assignedTeam,
+        progress: payload.progress,
+        salesStatus: payload.salesStatus,
+        products: [],
+        timeline: [],
+        visits: [],
+        offers: [],
+        payments: [],
+      };
+      newProject.salesStatus = deriveSalesStatus(newProject);
+      projectStore.push(newProject);
+      created += 1;
+      trackProcessedId(newProject.id);
+    }
+
+    if (payload.contractor) {
+      const { created: firmCreated } = ensureFirmRecord('construction', payload.contractor);
+      if (firmCreated) refreshConstruction = true;
+    }
+
+    if (payload.mechanical) {
+      const { created: firmCreated } = ensureFirmRecord('mechanical', payload.mechanical);
+      if (firmCreated) refreshMechanical = true;
+    }
+  }
+
+  if (created === 0 && updated === 0) {
+    throw new Error('Excel dosyasında aktarılacak uygun proje kaydı bulunamadı.');
+  }
+
+  populateProjectSelector();
+  const searchValue = projectSearch?.value ?? '';
+  renderProjectTable(searchValue);
+
+  if (!selectedProjectId || !getProject(selectedProjectId)) {
+    selectedProjectId = processedIds[0] ?? projectStore[0]?.id ?? null;
+  }
+
+  if (selectedProjectId) {
+    renderProjectDetail(selectedProjectId);
+  } else {
+    clearProjectDetails();
+  }
+
+  if (refreshConstruction) {
+    renderFirmTable(constructionTableBody, constructionFirms, constructionSearch?.value ?? '');
+  }
+  if (refreshMechanical) {
+    renderFirmTable(mechanicalTableBody, mechanicalFirms, mechanicalSearch?.value ?? '');
+  }
+
+  renderAssignments();
+  return { created, updated };
+}
+
+function exportProjectsToExcel() {
+  if (typeof XLSX === 'undefined') {
+    throw new Error('Excel modülü yüklenemedi.');
+  }
+
+  const rows = projectStore.map((project) => {
+    ensureProjectCollections(project);
+    const status = deriveSalesStatus(project);
+    project.salesStatus = status;
+    const { offerTotal, paymentTotal } = computeFinancialSummary(project);
+
+    return {
+      'Proje Kodu': project.id,
+      'Proje Adı': project.name,
+      Kategori: project.category,
+      'İl': project.city,
+      'Eklenme Tarihi': project.addedAt,
+      'Son Güncelleme': project.updatedAt,
+      'Bağlantı Türü': project.channel === 'dealer' ? 'Bayi' : 'Doğrudan',
+      'Bayi / Kanal': project.channel === 'dealer' ? project.channelName : '',
+      'Yüklenici': project.contractor,
+      'Mekanik Yüklenici': project.mechanical,
+      'Proje Sorumlusu': project.manager,
+      'Satış Durumu': status,
+      'Sorumlu Kurum': project.responsibleInstitution,
+      'Atanan Ekip': project.assignedTeam,
+      Kapsam: project.scope,
+      'İlerleme Notu': project.progress,
+      'Süreç Kayıtları': formatTimelineForExport(project.timeline),
+      Ürünler: formatProjectProductsForExport(project),
+      'Teklif Kayıtları': formatLogEntriesForExport(project.offers, 'offer'),
+      'Tahsilat Kayıtları': formatLogEntriesForExport(project.payments, 'payment'),
+      'Ziyaret Kayıtları': formatLogEntriesForExport(project.visits, 'visit'),
+      'Toplam Teklif': offerTotal,
+      'Toplam Tahsilat': paymentTotal,
+    };
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(rows, { header: PROJECT_EXPORT_HEADERS });
+  worksheet['!cols'] = PROJECT_EXPORT_HEADERS.map((header) => {
+    switch (header) {
+      case 'Proje Kodu':
+        return { wch: 16 };
+      case 'Proje Adı':
+        return { wch: 32 };
+      case 'Kategori':
+      case 'İl':
+        return { wch: 18 };
+      case 'Eklenme Tarihi':
+      case 'Son Güncelleme':
+        return { wch: 18 };
+      case 'Bağlantı Türü':
+        return { wch: 20 };
+      case 'Bayi / Kanal':
+        return { wch: 24 };
+      case 'Yüklenici':
+      case 'Mekanik Yüklenici':
+      case 'Proje Sorumlusu':
+        return { wch: 28 };
+      case 'Satış Durumu':
+        return { wch: 18 };
+      case 'Sorumlu Kurum':
+      case 'Atanan Ekip':
+        return { wch: 26 };
+      case 'Kapsam':
+      case 'İlerleme Notu':
+        return { wch: 40 };
+      case 'Süreç Kayıtları':
+      case 'Ürünler':
+      case 'Teklif Kayıtları':
+      case 'Tahsilat Kayıtları':
+      case 'Ziyaret Kayıtları':
+        return { wch: 52 };
+      case 'Toplam Teklif':
+      case 'Toplam Tahsilat':
+        return { wch: 22 };
+      default:
+        return { wch: 20 };
+    }
+  });
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Projeler');
+
+  const timestamp = new Date().toISOString().slice(0, 10);
+  const filename = `proje-veri-havuzu-${timestamp}.xlsx`;
+  XLSX.writeFile(workbook, filename, { compression: true });
+
+  return rows.length;
+}
+
 function renderProducts(project) {
   if (!productTableBody) return;
   if (!project) {
@@ -1059,6 +1566,126 @@ function renderLogs(project = getProject(selectedProjectId)) {
   );
 
   renderProducts(project);
+}
+
+function computeFinancialSummary(project) {
+  const result = { offerTotal: 0, paymentTotal: 0 };
+  if (!project) return result;
+
+  if (Array.isArray(project.products)) {
+    project.products.forEach((product) => {
+      const offerAmount = Number(product.offer ?? 0);
+      const paymentAmount = Number(product.payment ?? 0);
+      if (Number.isFinite(offerAmount)) {
+        result.offerTotal += offerAmount;
+      }
+      if (Number.isFinite(paymentAmount)) {
+        result.paymentTotal += paymentAmount;
+      }
+    });
+  }
+
+  if (Array.isArray(project.offers)) {
+    project.offers.forEach((entry) => {
+      const amount = Number(entry.amount ?? 0);
+      if (Number.isFinite(amount)) {
+        result.offerTotal += amount;
+      }
+    });
+  }
+
+  if (Array.isArray(project.payments)) {
+    project.payments.forEach((entry) => {
+      const amount = Number(entry.amount ?? 0);
+      if (Number.isFinite(amount)) {
+        result.paymentTotal += amount;
+      }
+    });
+  }
+
+  return result;
+}
+
+function formatTimelineForExport(entries) {
+  if (!Array.isArray(entries) || !entries.length) return '';
+  return [...entries]
+    .sort((a, b) => (a.date < b.date ? 1 : -1))
+    .map((entry) => {
+      const dateLabel = formatDisplayDate(entry.date);
+      const title = sanitizeText(entry.title) || '-';
+      const note = sanitizeText(entry.notes);
+      return `${dateLabel} • ${title}${note ? ' — ' + note : ''}`;
+    })
+    .join('\n');
+}
+
+function formatProjectProductsForExport(project) {
+  if (!Array.isArray(project?.products) || !project.products.length) return '';
+  return project.products
+    .map((item) => {
+      const parts = [];
+      const group = sanitizeText(item.group) || '-';
+      parts.push(group);
+      const brand = sanitizeText(item.brand);
+      if (brand) parts.push(`Marka: ${brand}`);
+      const offerAmount = Number(item.offer ?? 0);
+      if (Number.isFinite(offerAmount) && offerAmount) {
+        parts.push(`Teklif: ${formatCurrency(offerAmount)}`);
+      }
+      const paymentAmount = Number(item.payment ?? 0);
+      if (Number.isFinite(paymentAmount) && paymentAmount) {
+        parts.push(`Tahsilat: ${formatCurrency(paymentAmount)}`);
+      }
+      return parts.join(' • ');
+    })
+    .join('\n');
+}
+
+function formatLogEntriesForExport(entries, type) {
+  if (!Array.isArray(entries) || !entries.length) return '';
+  return [...entries]
+    .sort((a, b) => (a.date < b.date ? 1 : -1))
+    .map((entry) => {
+      const company = sanitizeText(entry.company) || '-';
+      const dateLabel = formatDisplayDate(entry.date);
+      const contactParts = [sanitizeText(entry.contact), sanitizeText(entry.phone)].filter(Boolean);
+      const notes = sanitizeText(entry.notes);
+      const pieces = [dateLabel];
+
+      if (type === 'offer') {
+        const amount = Number(entry.amount ?? 0);
+        if (Number.isFinite(amount) && amount) {
+          pieces.push(formatCurrency(amount));
+        }
+        const productGroup = sanitizeText(entry.productGroup);
+        if (productGroup) {
+          pieces.push(`Ürün: ${productGroup}`);
+        }
+      }
+
+      if (type === 'payment') {
+        const amount = Number(entry.amount ?? 0);
+        if (Number.isFinite(amount) && amount) {
+          pieces.push(formatCurrency(amount));
+        }
+        const method = sanitizeText(entry.method);
+        if (method) {
+          pieces.push(`Yöntem: ${method}`);
+        }
+        const productGroup = sanitizeText(entry.productGroup);
+        if (productGroup) {
+          pieces.push(`Ürün: ${productGroup}`);
+        }
+      }
+
+      if (contactParts.length) {
+        pieces.push(`Yetkili: ${contactParts.join(' • ')}`);
+      }
+
+      const meta = pieces.filter(Boolean).join(' • ');
+      return `${company}${meta ? ' • ' + meta : ''}${notes ? ' — ' + notes : ''}`;
+    })
+    .join('\n');
 }
 
 function renderLogList(target, items, type, templateFn) {
@@ -2008,6 +2635,76 @@ function setupSearch() {
   });
 }
 
+function setupProjectImportExport() {
+  projectImportBtn?.addEventListener('click', (event) => {
+    event.preventDefault();
+    if (!isManager()) {
+      showProjectImportFeedback('Excel içe aktarma yalnızca yöneticiler tarafından yapılabilir.', 'error', 6000);
+      return;
+    }
+    projectImportInput?.click();
+  });
+
+  projectImportInput?.addEventListener('change', async (event) => {
+    const input = event.target;
+    const [file] = input?.files ?? [];
+    if (input) {
+      input.value = '';
+    }
+    if (!file) return;
+
+    if (!isManager()) {
+      showProjectImportFeedback('Excel içe aktarma için yetkiniz bulunmuyor.', 'error', 6000);
+      return;
+    }
+    if (typeof XLSX === 'undefined') {
+      showProjectImportFeedback('Excel modülü yüklenemedi.', 'error', 6000);
+      return;
+    }
+
+    showProjectImportFeedback('Excel dosyası içe aktarılıyor...', 'warning', 0);
+
+    try {
+      const result = await importProjectsFromFile(file);
+      const created = result?.created ?? 0;
+      const updated = result?.updated ?? 0;
+      const parts = [];
+      if (created) parts.push(`${created} yeni`);
+      if (updated) parts.push(`${updated} güncel`);
+      const summary = parts.length ? parts.join(', ') : 'kayıt bulunamadı';
+      const tone = created || updated ? 'success' : 'warning';
+      const message = created || updated
+        ? `Excel aktarımı tamamlandı: ${summary}.`
+        : 'Excel dosyasında aktarılacak kayıt bulunamadı.';
+      showProjectImportFeedback(message, tone, 7000);
+    } catch (error) {
+      console.error('Excel import error', error);
+      const message = error?.message ?? 'Excel aktarımı sırasında bir hata oluştu.';
+      showProjectImportFeedback(message, 'error', 7000);
+    }
+  });
+
+  projectExportBtn?.addEventListener('click', (event) => {
+    event.preventDefault();
+    if (!projectStore.length) {
+      showProjectImportFeedback('Aktarılacak proje bulunmuyor.', 'warning', 5000);
+      return;
+    }
+    if (typeof XLSX === 'undefined') {
+      showProjectImportFeedback('Excel modülü yüklenemedi.', 'error', 6000);
+      return;
+    }
+
+    try {
+      const count = exportProjectsToExcel();
+      showProjectImportFeedback(`${count} proje Excel'e aktarıldı.`, 'success', 6000);
+    } catch (error) {
+      console.error('Excel export error', error);
+      showProjectImportFeedback('Excel dışa aktarımı sırasında bir hata oluştu.', 'error', 7000);
+    }
+  });
+}
+
 function setupModal() {
   newRecordBtn?.addEventListener('click', () => {
     newRecordModal.classList.remove('hidden');
@@ -2258,6 +2955,7 @@ function init() {
   setupFirmProfileForms();
   setupForms();
   setupSearch();
+  setupProjectImportExport();
   setupModal();
   activateView('project-pool');
 }
