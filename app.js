@@ -528,6 +528,39 @@ function formatCurrency(amount) {
   });
 }
 
+function deriveSalesStatus(project) {
+  if (!project) return 'Takipte';
+  const hasPayments = Array.isArray(project.payments) && project.payments.length > 0;
+  if (hasPayments) return 'Ödeme Alındı';
+  const hasOffers = Array.isArray(project.offers) && project.offers.length > 0;
+  if (hasOffers) return 'Teklif Verildi';
+  const hasVisits = Array.isArray(project.visits) && project.visits.length > 0;
+  if (hasVisits) return 'Temas Edildi';
+  return project.salesStatus?.trim() || 'Takipte';
+}
+
+function refreshProjectStatus(project) {
+  if (!project) return;
+  const status = deriveSalesStatus(project);
+  project.salesStatus = status;
+
+  const statusField = projectInfo?.querySelector('dd[data-field="salesStatus"]');
+  if (statusField) {
+    statusField.textContent = status || '-';
+  }
+
+  if (projectFormMode === 'edit' && projectForm) {
+    const originalId = projectForm.elements.namedItem('originalId')?.value || '';
+    const currentId = projectForm.elements.namedItem('projectId')?.value || '';
+    if (originalId === project.id || (!originalId && currentId === project.id)) {
+      setFormValue(projectForm, 'salesStatus', status);
+    }
+  }
+
+  renderProjectTable(projectSearch?.value ?? '');
+  renderAssignments();
+}
+
 function getStatusTone(status) {
   const value = status?.toLocaleLowerCase('tr-TR') ?? '';
   if (!value) return 'info';
@@ -791,6 +824,8 @@ function renderProjectTable(filterText = '') {
     .map((project) => {
       const statusClass = project.channel === 'direct' ? 'status-direct' : 'status-dealer';
       const channelLabel = project.channel === 'direct' ? 'Doğrudan' : `Bayi (${project.channelName ?? 'Belirtilmedi'})`;
+      const salesStatus = deriveSalesStatus(project);
+      project.salesStatus = salesStatus;
 
       return `
         <tr data-project-id="${project.id}" class="${project.id === selectedProjectId ? 'is-active' : ''}">
@@ -802,7 +837,7 @@ function renderProjectTable(filterText = '') {
           <td>${project.name}</td>
           <td>${project.contractor}</td>
           <td>${project.mechanical}</td>
-          <td>${project.salesStatus}</td>
+          <td>${salesStatus}</td>
           <td>${project.manager}</td>
         </tr>
       `;
@@ -850,6 +885,9 @@ function renderProjectDetail(projectId) {
     projectSelector.value = project.id;
   }
 
+  const salesStatus = deriveSalesStatus(project);
+  project.salesStatus = salesStatus;
+
   projectInfo.innerHTML = `
     <dt>Proje Kodu</dt><dd>${project.id}</dd>
     <dt>Kategori</dt><dd>${project.category}</dd>
@@ -858,7 +896,7 @@ function renderProjectDetail(projectId) {
     <dt>Son Güncelleme</dt><dd>${formatDisplayDate(project.updatedAt)}</dd>
     <dt>Yüklenici</dt><dd>${project.contractor || '-'}</dd>
     <dt>Mekanik Yüklenici</dt><dd>${project.mechanical || '-'}</dd>
-    <dt>Satış Durumu</dt><dd>${project.salesStatus || '-'}</dd>
+    <dt>Satış Durumu</dt><dd data-field="salesStatus">${salesStatus || '-'}</dd>
     <dt>Bağlantı Türü</dt><dd>${
       project.channel === 'direct'
         ? 'Doğrudan'
@@ -1650,6 +1688,7 @@ function setupForms() {
 
       resetLogForm(type);
       renderLogs(project);
+      refreshProjectStatus(project);
     });
 
     form.querySelector('[data-action="cancel-log"]')?.addEventListener('click', () => {
@@ -1753,6 +1792,7 @@ function setupForms() {
           resetLogForm(type);
         }
         renderLogs(project);
+        refreshProjectStatus(project);
       }
     });
   });
