@@ -600,6 +600,15 @@ table td.status-chip {
   gap: 1rem;
 }
 
+.form-actions--with-feedback {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.form-actions--with-feedback .form-feedback {
+  flex: 1;
+}
+
 form {
   display: grid;
   gap: 0.85rem;
@@ -636,6 +645,16 @@ form .full-width {
   gap: 0.75rem;
   justify-content: flex-end;
   flex-wrap: wrap;
+}
+
+.form-feedback {
+  font-size: 0.85rem;
+  color: var(--muted);
+  min-height: 1em;
+}
+
+.form-feedback.is-visible {
+  color: var(--orange-dark);
 }
 
 .ghost-btn.danger {

@@ -409,6 +409,44 @@
       <header class="section-header">
         <h2>İnşaat Firması Detay</h2>
       </header>
+      <section class="form-card firm-create-card">
+        <header>
+          <h3>Yeni İnşaat Firması Ekle</h3>
+          <p class="muted">Projeden bağımsız yeni bir inşaat firması kaydedin.</p>
+        </header>
+        <form class="firm-create-form" id="constructionFirmForm" data-firm-type="construction">
+          <div class="form-grid">
+            <label>
+              <span>Firma Adı</span>
+              <input type="text" name="firmName" placeholder="Firma adı" required />
+            </label>
+            <label>
+              <span>İl</span>
+              <input type="text" name="firmCity" placeholder="İl" />
+            </label>
+            <label>
+              <span>Yetkili</span>
+              <input type="text" name="firmContact" placeholder="Yetkili kişi" />
+            </label>
+            <label>
+              <span>Çalışma Durumu</span>
+              <input type="text" name="firmStatus" placeholder="Çalışma durumu" />
+            </label>
+            <label>
+              <span>Sorumlu Personel</span>
+              <input type="text" name="firmOwner" placeholder="Sorumlu personel" />
+            </label>
+            <label class="full-width">
+              <span>Notlar</span>
+              <textarea name="firmNotes" rows="2" placeholder="Ek notlar"></textarea>
+            </label>
+          </div>
+          <div class="form-actions form-actions--with-feedback">
+            <span class="form-feedback" data-role="feedback"></span>
+            <button type="submit" class="primary-btn">Firmayı Kaydet</button>
+          </div>
+        </form>
+      </section>
       <table>
         <thead>
           <tr>
@@ -429,6 +467,44 @@
       <header class="section-header">
         <h2>Mekanik Firma Detay</h2>
       </header>
+      <section class="form-card firm-create-card">
+        <header>
+          <h3>Yeni Mekanik Firması Ekle</h3>
+          <p class="muted">Projeden bağımsız yeni bir mekanik firması kaydedin.</p>
+        </header>
+        <form class="firm-create-form" id="mechanicalFirmForm" data-firm-type="mechanical">
+          <div class="form-grid">
+            <label>
+              <span>Firma Adı</span>
+              <input type="text" name="firmName" placeholder="Firma adı" required />
+            </label>
+            <label>
+              <span>İl</span>
+              <input type="text" name="firmCity" placeholder="İl" />
+            </label>
+            <label>
+              <span>Yetkili</span>
+              <input type="text" name="firmContact" placeholder="Yetkili kişi" />
+            </label>
+            <label>
+              <span>Çalışma Durumu</span>
+              <input type="text" name="firmStatus" placeholder="Çalışma durumu" />
+            </label>
+            <label>
+              <span>Sorumlu Personel</span>
+              <input type="text" name="firmOwner" placeholder="Sorumlu personel" />
+            </label>
+            <label class="full-width">
+              <span>Notlar</span>
+              <textarea name="firmNotes" rows="2" placeholder="Ek notlar"></textarea>
+            </label>
+          </div>
+          <div class="form-actions form-actions--with-feedback">
+            <span class="form-feedback" data-role="feedback"></span>
+            <button type="submit" class="primary-btn">Firmayı Kaydet</button>
+          </div>
+        </form>
+      </section>
       <table>
         <thead>
           <tr>
@@ -507,10 +583,10 @@
       <h2>Yeni Kayıt Oluştur</h2>
       <p>Eklemek istediğiniz kayıt tipini seçin:</p>
       <div class="modal__actions">
-        <button class="ghost-btn">Proje Kaydı</button>
-        <button class="ghost-btn">İnşaat Firması</button>
-        <button class="ghost-btn">Mekanik Firması</button>
-        <button class="ghost-btn">Ziyaret/Teklif</button>
+        <button class="ghost-btn" data-quick-action="project">Proje Ekle</button>
+        <button class="ghost-btn" data-quick-action="construction">İnşaat Firma Ekle</button>
+        <button class="ghost-btn" data-quick-action="mechanical">Mekanik Firma Ekle</button>
+        <button class="ghost-btn" data-quick-action="visit-offer">Ziyaret / Teklif Ekle</button>
       </div>
       <p class="muted">Detaylı kayıt formları için proje bilgi alanını kullanabilirsiniz.</p>
     </div>

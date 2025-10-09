@@ -30,6 +30,8 @@ const productForm = document.getElementById('productForm');
 const timelineForm = document.getElementById('timelineForm');
 const requestForm = document.getElementById('requestForm');
 
+const feedbackTimers = new WeakMap();
+
 const counts = {
   TOKİ: document.getElementById('tokiCount'),
   'Emlak Konut': document.getElementById('emlakCount'),
@@ -691,6 +693,40 @@ function setFormValue(form, name, value) {
   }
 }
 
+function clearFormFeedback(form) {
+  if (!form) return;
+  const feedback = form.querySelector('[data-role="feedback"]');
+  if (!feedback) return;
+  const timer = feedbackTimers.get(feedback);
+  if (timer) {
+    window.clearTimeout(timer);
+    feedbackTimers.delete(feedback);
+  }
+  feedback.textContent = '';
+  feedback.classList.remove('is-visible');
+}
+
+function showFormFeedback(form, message) {
+  if (!form) return;
+  const feedback = form.querySelector('[data-role="feedback"]');
+  if (!feedback) return;
+  const timer = feedbackTimers.get(feedback);
+  if (timer) {
+    window.clearTimeout(timer);
+    feedbackTimers.delete(feedback);
+  }
+  feedback.textContent = message;
+  feedback.classList.add('is-visible');
+  const timeout = window.setTimeout(() => {
+    if (feedback.textContent === message) {
+      feedback.textContent = '';
+      feedback.classList.remove('is-visible');
+    }
+    feedbackTimers.delete(feedback);
+  }, 2000);
+  feedbackTimers.set(feedback, timeout);
+}
+
 function openProjectForm(mode, project) {
   if (!projectForm) return;
   projectFormMode = mode;
@@ -1073,6 +1109,63 @@ function activateView(target) {
   dashboards.forEach((section) => {
     section.classList.toggle('hidden', section.dataset.view !== target);
   });
+}
+
+function openFirmCreationForm(type) {
+  const form = document.querySelector(`form.firm-create-form[data-firm-type="${type}"]`);
+  if (!(form instanceof HTMLFormElement)) return;
+  form.reset();
+  clearFormFeedback(form);
+  window.requestAnimationFrame(() => {
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const nameField = form.elements.namedItem('firmName');
+    if (nameField instanceof HTMLElement) {
+      nameField.focus();
+    }
+  });
+}
+
+function handleQuickAction(action) {
+  switch (action) {
+    case 'project':
+      activateView('project-detail');
+      openProjectForm('create');
+      if (projectForm) {
+        window.requestAnimationFrame(() => {
+          projectForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          const idField = projectForm.elements.namedItem('projectId');
+          if (idField instanceof HTMLElement) {
+            idField.focus();
+          }
+        });
+      }
+      break;
+    case 'construction':
+      activateView('construction-detail');
+      openFirmCreationForm('construction');
+      break;
+    case 'mechanical':
+      activateView('mechanical-detail');
+      openFirmCreationForm('mechanical');
+      break;
+    case 'visit-offer':
+      activateView('project-detail');
+      {
+        const visitFormElement = document.getElementById('visitForm');
+        if (visitFormElement instanceof HTMLFormElement) {
+          window.requestAnimationFrame(() => {
+            visitFormElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            const companyField = visitFormElement.elements.namedItem('company');
+            if (companyField instanceof HTMLElement) {
+              companyField.focus();
+            }
+          });
+        }
+      }
+      break;
+    default:
+      break;
+  }
 }
 
 function renderFirmTable(target, items, searchText = '') {
@@ -1764,18 +1857,7 @@ function setupFirmProfileForms() {
 
       refreshFirmTable(firmType);
       renderAssignments();
-
-      const feedback = form.querySelector('[data-role="feedback"]');
-      if (feedback) {
-        feedback.textContent = 'Bilgiler güncellendi';
-        feedback.classList.add('is-visible');
-        window.setTimeout(() => {
-          if (feedback.textContent === 'Bilgiler güncellendi') {
-            feedback.textContent = '';
-            feedback.classList.remove('is-visible');
-          }
-        }, 2000);
-      }
+      showFormFeedback(form, 'Bilgiler güncellendi');
     });
 
     profile?.addEventListener('click', (event) => {
@@ -1789,6 +1871,63 @@ function setupFirmProfileForms() {
       if (!window.confirm(`${firmName} kaydını silmek istediğinize emin misiniz?`)) return;
 
       finalizeFirmDeletion(firmType, firmName);
+    });
+  });
+
+  document.querySelectorAll('.firm-create-form').forEach((formElement) => {
+    if (!(formElement instanceof HTMLFormElement)) return;
+    formElement.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const firmType = formElement.dataset.firmType;
+      if (!firmType) return;
+
+      const nameField = formElement.elements.namedItem('firmName');
+      const firmName = nameField?.value?.trim() ?? '';
+      if (!firmName) {
+        showFormFeedback(formElement, 'Firma adı zorunludur');
+        if (nameField instanceof HTMLElement) {
+          nameField.focus();
+        }
+        return;
+      }
+
+      const { firm, created } = ensureFirmRecord(firmType, firmName);
+      if (!firm) return;
+
+      const previousOwner = firm.owner?.trim() ?? '';
+      const city = formElement.elements.namedItem('firmCity')?.value?.trim() ?? '';
+      const contact = formElement.elements.namedItem('firmContact')?.value?.trim() ?? '';
+      const status = formElement.elements.namedItem('firmStatus')?.value?.trim() ?? '';
+      const owner = formElement.elements.namedItem('firmOwner')?.value?.trim() ?? '';
+      const notes = formElement.elements.namedItem('firmNotes')?.value?.trim() ?? '';
+
+      firm.city = city;
+      firm.contact = contact;
+      firm.status = status;
+      firm.owner = owner;
+      if (owner && owner !== previousOwner) {
+        firm.ownerAssignedAt = new Date().toISOString().slice(0, 10);
+      }
+      if (!owner) {
+        firm.ownerAssignedAt = '';
+      }
+      firm.notes = notes;
+      if (!Array.isArray(firm.ongoing)) firm.ongoing = [];
+      if (!Array.isArray(firm.completed)) firm.completed = [];
+
+      refreshFirmTable(firmType);
+      renderAssignments();
+      renderFirmProfilePanel(firmType, firm);
+      showFormFeedback(formElement, created ? 'Firma kaydı oluşturuldu' : 'Firma bilgileri güncellendi');
+
+      if (created) {
+        formElement.reset();
+      }
+
+      const focusField = formElement.elements.namedItem('firmName');
+      if (focusField instanceof HTMLElement) {
+        focusField.focus();
+      }
     });
   });
 }
@@ -1822,6 +1961,18 @@ function setupModal() {
   newRecordModal?.addEventListener('click', (event) => {
     if (event.target === newRecordModal) close();
   });
+
+  newRecordModal
+    ?.querySelectorAll('[data-quick-action]')
+    .forEach((button) => {
+      button.addEventListener('click', () => {
+        const action = button.dataset.quickAction;
+        close();
+        if (action) {
+          handleQuickAction(action);
+        }
+      });
+    });
 }
 
 function init() {
