@@ -13,7 +13,26 @@
   />
 </head>
 <body>
-  <header class="topbar">
+  <div class="auth-screen" id="authScreen">
+    <form class="login-card" id="loginForm">
+      <h2>Panel Girişi</h2>
+      <p class="muted">Devam etmek için kullanıcı adınızı ve şifrenizi girin.</p>
+      <label>
+        <span>Kullanıcı Adı</span>
+        <input type="email" name="username" placeholder="ornek@kaldeboru.com" required />
+      </label>
+      <label>
+        <span>Şifre</span>
+        <input type="password" name="password" placeholder="••••••" required />
+      </label>
+      <p class="login-card__feedback" id="authError" aria-live="polite"></p>
+      <div class="form-actions">
+        <button type="submit" class="primary-btn">Giriş Yap</button>
+      </div>
+    </form>
+  </div>
+
+  <header class="topbar requires-auth">
     <div class="brand">
       <span class="brand__logo">K</span>
       <div class="brand__text">
@@ -29,10 +48,20 @@
       <button class="nav-link" data-target="assignments">Atamalar</button>
       <button class="nav-link" data-target="requests">Talepler</button>
     </nav>
-    <button class="primary-btn" id="newRecordBtn">Yeni Kayıt Ekle</button>
+    <div class="topbar__actions">
+      <button class="ghost-btn" id="userAdminBtn">Kullanıcı Yönetimi</button>
+      <button class="primary-btn" id="newRecordBtn">Yeni Kayıt Ekle</button>
+      <div class="user-summary">
+        <div class="user-summary__info">
+          <span class="user-summary__name" id="currentUserName"></span>
+          <span class="user-summary__role" id="currentUserRole"></span>
+        </div>
+        <button class="ghost-btn ghost-btn--compact" id="logoutBtn">Çıkış</button>
+      </div>
+    </div>
   </header>
 
-  <main>
+  <main class="requires-auth">
     <section class="dashboard" data-view="project-pool">
       <div class="search-panel">
         <label>
@@ -166,7 +195,7 @@
               </label>
               <label>
                 <span>Proje Sorumlusu</span>
-                <input type="text" name="manager" />
+                <select name="manager" data-staff-select data-allow-empty="true"></select>
               </label>
               <label>
                 <span>Bağlantı Türü</span>
@@ -434,7 +463,7 @@
             </label>
             <label>
               <span>Sorumlu Personel</span>
-              <input type="text" name="firmOwner" placeholder="Sorumlu personel" />
+              <select name="firmOwner" data-staff-select data-allow-empty="true"></select>
             </label>
             <label class="full-width">
               <span>Notlar</span>
@@ -492,7 +521,7 @@
             </label>
             <label>
               <span>Sorumlu Personel</span>
-              <input type="text" name="firmOwner" placeholder="Sorumlu personel" />
+              <select name="firmOwner" data-staff-select data-allow-empty="true"></select>
             </label>
             <label class="full-width">
               <span>Notlar</span>
@@ -553,7 +582,7 @@
           </label>
           <label>
             <span>Sorumlu Kişi</span>
-            <input type="text" name="owner" placeholder="Sorumlu personel" />
+            <select name="owner" data-staff-select data-allow-empty="false"></select>
           </label>
           <label>
             <span>Termin Tarihi</span>
@@ -561,11 +590,21 @@
           </label>
           <label>
             <span>Durum</span>
-            <input type="text" name="status" placeholder="Durum" />
+            <select name="status" id="requestStatusField">
+              <option value="Beklemede">Beklemede</option>
+              <option value="Onay Sürecinde">Onay Sürecinde</option>
+              <option value="Tamamlandı">Tamamlandı</option>
+              <option value="İptal Edildi">İptal Edildi</option>
+            </select>
           </label>
           <label class="full-width">
             <span>Açıklama</span>
             <textarea name="notes" rows="2" placeholder="Talep ile ilgili kısa not"></textarea>
+          </label>
+          <label class="full-width request-form__upload">
+            <span>Belge Ekle</span>
+            <input type="file" name="attachments" id="requestAttachments" multiple />
+            <small class="input-hint">Birden fazla dosya seçebilirsiniz.</small>
           </label>
           <div class="form-actions">
             <button type="submit" class="primary-btn" data-role="submit">Kaydet</button>
@@ -589,6 +628,58 @@
         <button class="ghost-btn" data-quick-action="visit-offer">Ziyaret / Teklif Ekle</button>
       </div>
       <p class="muted">Detaylı kayıt formları için proje bilgi alanını kullanabilirsiniz.</p>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="userModal">
+    <div class="modal__content modal__content--wide">
+      <button class="modal__close" data-action="close-user-modal">×</button>
+      <h2>Kullanıcı Yönetimi</h2>
+      <p class="muted">Yeni kullanıcı oluşturabilir, rollerini güncelleyebilir ve şifrelerini belirleyebilirsiniz.</p>
+      <p class="modal-feedback" id="userModalFeedback" aria-live="polite"></p>
+      <section class="user-admin__section">
+        <h3>Yeni Kullanıcı Oluştur</h3>
+        <form class="user-form" id="userForm">
+          <div class="form-grid">
+            <label>
+              <span>Ad Soyad</span>
+              <input type="text" name="fullName" placeholder="Ad Soyad" required />
+            </label>
+            <label>
+              <span>Kullanıcı Adı (E-posta)</span>
+              <input type="email" name="email" placeholder="ornek@kaldeboru.com" required />
+            </label>
+            <label>
+              <span>Şifre</span>
+              <input type="password" name="password" placeholder="En az 6 karakter" required />
+            </label>
+            <label>
+              <span>Rol</span>
+              <select name="role">
+                <option value="standard">Standart</option>
+                <option value="manager">Yönetici</option>
+              </select>
+            </label>
+          </div>
+          <div class="form-actions form-actions--with-feedback">
+            <span class="form-feedback" data-role="feedback"></span>
+            <button type="submit" class="primary-btn" data-role="submit">Kullanıcıyı Kaydet</button>
+          </div>
+        </form>
+      </section>
+      <section class="user-admin__section">
+        <h3>Mevcut Kullanıcılar</h3>
+        <table class="user-table">
+          <thead>
+            <tr>
+              <th>Kullanıcı</th>
+              <th>Rol</th>
+              <th>İşlemler</th>
+            </tr>
+          </thead>
+          <tbody id="userTableBody"></tbody>
+        </table>
+      </section>
     </div>
   </div>
 

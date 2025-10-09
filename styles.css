@@ -26,6 +26,64 @@ body {
   min-height: 100vh;
 }
 
+body.is-authenticated .auth-screen {
+  display: none;
+}
+
+body:not(.is-authenticated) .requires-auth {
+  display: none;
+}
+
+.auth-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(31, 60, 136, 0.85), rgba(255, 140, 50, 0.85));
+  padding: 2rem;
+  z-index: 100;
+}
+
+.login-card {
+  background: var(--white);
+  border-radius: 1.5rem;
+  padding: 2rem;
+  max-width: 420px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  box-shadow: 0 30px 60px rgba(31, 60, 136, 0.25);
+}
+
+.login-card h2 {
+  font-size: 1.6rem;
+  color: var(--navy);
+}
+
+.login-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.login-card input {
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  color: var(--navy);
+}
+
+.login-card__feedback {
+  min-height: 1.25rem;
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
 .topbar {
   background: var(--white);
   display: flex;
@@ -36,6 +94,46 @@ body {
   position: sticky;
   top: 0;
   z-index: 10;
+}
+
+.topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(31, 60, 136, 0.08);
+}
+
+.user-summary__info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.1;
+}
+
+.user-summary__name {
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.user-summary__role {
+  font-size: 0.75rem;
+  color: var(--white);
+  background: linear-gradient(135deg, var(--navy), var(--navy-dark));
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+}
+
+.ghost-btn--compact {
+  padding: 0.35rem 0.9rem;
+  font-size: 0.85rem;
 }
 
 .brand {
@@ -129,6 +227,20 @@ body {
   color: var(--white);
 }
 
+.ghost-btn--link {
+  border: none;
+  padding: 0;
+  color: var(--navy);
+  background: transparent;
+  font-size: 0.85rem;
+  text-decoration: underline;
+}
+
+.ghost-btn--link:hover {
+  background: transparent;
+  color: var(--orange-dark);
+}
+
 main {
   padding: 2rem;
   max-width: 1400px;
@@ -143,6 +255,17 @@ main {
 
 .hidden {
   display: none !important;
+}
+
+.visually-hidden-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }
 
 .search-panel {
@@ -621,6 +744,11 @@ form label {
   font-size: 0.85rem;
 }
 
+.input-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
 form input,
 form textarea,
 form select {
@@ -634,6 +762,17 @@ form select {
 
 form textarea {
   resize: vertical;
+}
+
+.is-readonly {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.request-form__upload input[type='file'] {
+  border: 1px dashed var(--border);
+  padding: 0.8rem;
+  border-radius: 0.8rem;
 }
 
 form .full-width {
@@ -841,6 +980,25 @@ form .full-width {
   color: var(--navy);
 }
 
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.role-badge--manager {
+  background: linear-gradient(135deg, var(--navy), var(--navy-dark));
+  color: var(--white);
+}
+
+.role-badge--standard {
+  background: rgba(31, 60, 136, 0.12);
+  color: var(--navy);
+}
+
 .request-layout {
   display: grid;
   gap: 1.5rem;
@@ -922,6 +1080,45 @@ form .full-width {
   gap: 0.35rem;
 }
 
+.request-card__attachments {
+  list-style: none;
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+}
+
+.request-attachment {
+  display: grid;
+  gap: 0.2rem;
+  background: rgba(31, 60, 136, 0.08);
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.8rem;
+}
+
+.request-attachment a {
+  color: var(--navy);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.request-attachment a:hover {
+  text-decoration: underline;
+}
+
+.request-attachment__meta {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.request-card__no-attachment {
+  font-size: 0.85rem;
+  color: var(--muted);
+  background: rgba(31, 60, 136, 0.05);
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.8rem;
+}
+
 .request-card__actions {
   display: flex;
   gap: 0.5rem;
@@ -967,6 +1164,10 @@ form .full-width {
   position: relative;
 }
 
+.modal__content--wide {
+  max-width: 760px;
+}
+
 .modal__close {
   position: absolute;
   top: 1rem;
@@ -983,6 +1184,64 @@ form .full-width {
 .modal__actions {
   display: grid;
   gap: 0.75rem;
+}
+
+.modal-feedback {
+  color: var(--navy);
+  font-weight: 500;
+  min-height: 1rem;
+}
+
+.modal-feedback.is-visible {
+  opacity: 1;
+}
+
+.user-admin__section {
+  display: grid;
+  gap: 1rem;
+}
+
+.user-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  overflow: hidden;
+}
+
+.user-table th,
+.user-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.user-table thead {
+  background: rgba(31, 60, 136, 0.08);
+}
+
+.user-table__name {
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.user-table__email {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.user-table__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.user-table__actions select {
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
 }
 
 .muted {

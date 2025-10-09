@@ -1,3 +1,14 @@
+const authScreen = document.getElementById('authScreen');
+const loginForm = document.getElementById('loginForm');
+const authError = document.getElementById('authError');
+const logoutBtn = document.getElementById('logoutBtn');
+const currentUserName = document.getElementById('currentUserName');
+const currentUserRole = document.getElementById('currentUserRole');
+const userAdminBtn = document.getElementById('userAdminBtn');
+const userModal = document.getElementById('userModal');
+const userModalFeedback = document.getElementById('userModalFeedback');
+const userForm = document.getElementById('userForm');
+const userTableBody = document.getElementById('userTableBody');
 const navLinks = document.querySelectorAll('.nav-link');
 const dashboards = document.querySelectorAll('.dashboard');
 const projectTableBody = document.getElementById('projectTableBody');
@@ -31,6 +42,55 @@ const timelineForm = document.getElementById('timelineForm');
 const requestForm = document.getElementById('requestForm');
 
 const feedbackTimers = new WeakMap();
+let userModalFeedbackTimer = null;
+
+const ROLE_LABELS = {
+  manager: 'Yönetici',
+  standard: 'Standart',
+};
+
+const DEFAULT_REQUEST_STATUS = 'Beklemede';
+
+const userStore = [
+  {
+    id: 'user-met',
+    fullName: 'Metehan Kargılı',
+    email: 'metehankargili@kaldeboru.com',
+    password: '123456',
+    role: 'manager',
+    status: 'active',
+    createdAt: '2024-01-01',
+  },
+  {
+    id: 'user-saf',
+    fullName: 'Safili Tanık',
+    email: 'safili.tanik@kaldeboru.com',
+    password: '',
+    role: 'standard',
+    status: 'active',
+    createdAt: '2024-01-02',
+  },
+  {
+    id: 'user-cig',
+    fullName: 'Çiğdem Tuna',
+    email: 'cigdem.tuna@kaldeboru.com',
+    password: '',
+    role: 'standard',
+    status: 'active',
+    createdAt: '2024-01-03',
+  },
+  {
+    id: 'user-osm',
+    fullName: 'Osman Öztürk',
+    email: 'osman.ozturk@kaldeboru.com',
+    password: '',
+    role: 'standard',
+    status: 'active',
+    createdAt: '2024-01-04',
+  },
+];
+
+let currentUser = null;
 
 const counts = {
   TOKİ: document.getElementById('tokiCount'),
@@ -39,281 +99,9 @@ const counts = {
   Kamu: document.getElementById('publicCount'),
 };
 
-const projectStore = [
-  {
-    id: 'PRJ-001',
-    addedAt: '2025-02-12',
-    updatedAt: '2025-03-10',
-    category: 'TOKİ',
-    city: 'Adana',
-    name: 'Adana Sarıçam 500 Konut Projesi',
-    contractor: 'ADA Group',
-    mechanical: 'Ada Mekanik',
-    salesStatus: 'Teklif Verildi',
-    manager: 'Çiğdem Tuna',
-    channel: 'direct',
-    channelName: '',
-    scope: '500 Konut + Sosyal Alan',
-    responsibleInstitution: 'TOKİ',
-    progress: 'Teklif değerlendirme aşamasında',
-    assignedTeam: 'Proje Satış',
-    products: [
-      { id: 'prod-001-1', group: 'Plastik', offer: 480000, payment: 0, brand: 'Kalde' },
-      { id: 'prod-001-2', group: 'Esnek Flex', offer: 185000, payment: 0, brand: 'Kalde' },
-      { id: 'prod-001-3', group: 'Altyapı', offer: 325000, payment: 0, brand: 'Kalde' },
-    ],
-    timeline: [
-      {
-        id: 'time-001-1',
-        title: 'Keşif ziyareti gerçekleştirildi',
-        date: '2025-02-12',
-        notes: 'Ada Group şantiye alanı yerinde incelendi. Mekanik ekiplerle ihtiyaç listesi çıkarıldı.',
-      },
-      {
-        id: 'time-001-2',
-        title: 'Teklif teslim edildi',
-        date: '2025-02-28',
-        notes: 'TOKİ ihalesi kapsamında PVC boru ve radyatör ürün grubu için teklif iletildi.',
-      },
-      {
-        id: 'time-001-3',
-        title: 'Geri bildirim bekleniyor',
-        date: '2025-03-10',
-        notes: 'Proje değerlendirme kurulunun dönüşü beklenecek. Takip randevusu 18 Mart olarak planlandı.',
-      },
-    ],
-    visits: [
-      {
-        id: 'visit-001-1',
-        date: '2025-02-12',
-        company: 'ADA Group',
-        contact: 'Ahmet Er',
-        phone: '+90 555 123 45 67',
-        notes: 'Şantiye keşfi yapıldı. Ürün listesi hazırlandı.',
-      },
-    ],
-    offers: [
-      {
-        id: 'offer-001-1',
-        date: '2025-02-28',
-        company: 'ADA Group',
-        contact: 'Ahmet Er',
-        phone: 'ahmet.er@adagroup.com',
-        amount: 985000,
-        productGroup: 'PVC & Flex Hatları',
-        notes: 'PVC boru ve flex ürünleri için 985.000₺ teklif edildi.',
-      },
-    ],
-    payments: [],
-  },
-  {
-    id: 'PRJ-002',
-    addedAt: '2025-01-25',
-    updatedAt: '2025-02-28',
-    category: 'Emlak Konut',
-    city: 'İstanbul',
-    name: 'İstanbul Finans Şehri Kuleleri',
-    contractor: '123 Yapı A.Ş.',
-    mechanical: 'Breeze Mekanik',
-    salesStatus: 'Sipariş Alındı',
-    manager: 'Metehan Kargılı',
-    channel: 'dealer',
-    channelName: 'İstanbul Anadolu Bayi',
-    scope: 'Ofis + Rezidans',
-    responsibleInstitution: 'Emlak Konut GYO',
-    progress: 'Malzeme sevkiyatı planlanıyor',
-    assignedTeam: 'Mega Projeler',
-    products: [
-      { id: 'prod-002-1', group: 'Sessiz-TR', offer: 650000, payment: 350000, brand: 'Kalde' },
-      { id: 'prod-002-2', group: 'Metal', offer: 420000, payment: 200000, brand: 'Kalde' },
-      { id: 'prod-002-3', group: 'Radyatör', offer: 280000, payment: 0, brand: 'ECA' },
-    ],
-    timeline: [
-      {
-        id: 'time-002-1',
-        title: 'Bayi ile koordinasyon toplantısı',
-        date: '2025-01-15',
-        notes: 'İstanbul Anadolu Bayi proje lojistiğini üstlenecek. Sevkiyat planı çıkarıldı.',
-      },
-      {
-        id: 'time-002-2',
-        title: 'Sipariş onayı alındı',
-        date: '2025-02-28',
-        notes: 'Ürün teslimatı 15 Mart için planlandı. Finans departmanına bilgi verildi.',
-      },
-    ],
-    visits: [
-      {
-        id: 'visit-002-1',
-        date: '2025-01-15',
-        company: '123 Yapı A.Ş.',
-        contact: 'Mert Şahin',
-        phone: '+90 555 987 65 43',
-        notes: 'Bayi ile beraber toplantı gerçekleştirildi.',
-      },
-    ],
-    offers: [],
-    payments: [
-      {
-        id: 'payment-002-1',
-        date: '2025-02-28',
-        company: '123 Yapı A.Ş.',
-        productGroup: 'Sessiz-TR Hatları',
-        amount: 350000,
-        method: 'Havale',
-        notes: 'İlk parti sevkiyat için ön ödeme alındı.',
-      },
-    ],
-  },
-  {
-    id: 'PRJ-003',
-    addedAt: '2024-12-14',
-    updatedAt: '2025-02-10',
-    category: 'Özel',
-    city: 'Ankara',
-    name: 'Ankara Karma Yaşam Alanı',
-    contractor: 'Mira İnşaat',
-    mechanical: 'Mira Tesisat',
-    salesStatus: 'Görüşme',
-    manager: 'Çiğdem Tuna',
-    channel: 'direct',
-    channelName: '',
-    scope: '250 Konut + AVM',
-    responsibleInstitution: 'Özel',
-    progress: 'Mimari revizyon bekleniyor',
-    assignedTeam: 'Bölge Satış',
-    products: [
-      { id: 'prod-003-1', group: 'Plastik Kolektör', offer: 210000, payment: 0, brand: 'Kalde' },
-      { id: 'prod-003-2', group: 'Ankastre Vana', offer: 98000, payment: 0, brand: 'Kalde' },
-    ],
-    timeline: [
-      {
-        id: 'time-003-1',
-        title: 'Konsept sunumu yapıldı',
-        date: '2025-01-20',
-        notes: 'Mimarlar ve mekanik ekip ile ürün seçimi değerlendirildi.',
-      },
-    ],
-    visits: [],
-    offers: [],
-    payments: [],
-  },
-  {
-    id: 'PRJ-004',
-    addedAt: '2024-11-02',
-    updatedAt: '2025-01-15',
-    category: 'Kamu',
-    city: 'Trabzon',
-    name: 'Trabzon Şehir Hastanesi Isıtma Projesi',
-    contractor: 'Kuzey İnşaat',
-    mechanical: 'Kuzey Teknik',
-    salesStatus: 'Teklif Hazırlanıyor',
-    manager: 'Metehan Kargılı',
-    channel: 'dealer',
-    channelName: 'Karadeniz Bölge Bayi',
-    scope: 'Hastane Mekanik Tesisatı',
-    responsibleInstitution: 'Sağlık Bakanlığı',
-    progress: 'Keşif tamamlandı',
-    assignedTeam: 'Kamu Projeleri',
-    products: [
-      { id: 'prod-004-1', group: 'Metal', offer: 510000, payment: 120000, brand: 'Kalde' },
-      { id: 'prod-004-2', group: 'Altyapı', offer: 380000, payment: 0, brand: 'Kalde' },
-    ],
-    timeline: [
-      {
-        id: 'time-004-1',
-        title: 'Karadeniz Bölge Bayi keşif yaptı',
-        date: '2025-01-08',
-        notes: 'Hastane kazan dairesi ve altyapı hatları ölçüldü.',
-      },
-      {
-        id: 'time-004-2',
-        title: 'Teklif hazırlığı',
-        date: '2025-01-15',
-        notes: 'Sağlık Bakanlığı teknik şartnamelerine göre ürün listesi oluşturuldu.',
-      },
-    ],
-    visits: [],
-    offers: [
-      {
-        id: 'offer-004-1',
-        date: '2025-01-20',
-        company: 'Kuzey İnşaat',
-        contact: 'Derya Kılıç',
-        phone: '+90 312 400 22 11',
-        amount: 890000,
-        productGroup: 'Hastane Altyapı Hatları',
-        notes: 'Hastane altyapısı için ürün kalemleri gönderildi.',
-      },
-    ],
-    payments: [
-      {
-        id: 'payment-004-1',
-        date: '2025-02-05',
-        company: 'Karadeniz Bölge Bayi',
-        productGroup: 'Metal Hatlar',
-        amount: 120000,
-        method: 'Dekont',
-        notes: 'Bayi üzerinden tahsil edildi.',
-      },
-    ],
-  },
-];
-
-const constructionFirms = [
-  {
-    name: '1923 İnşaat A.Ş.',
-    city: 'İstanbul',
-    contact: 'Ahmet Er (Satın Alma)',
-    status: 'Çalışıyor',
-    owner: 'Çiğdem Tuna',
-    ongoing: [
-      { category: 'TOKİ', project: 'Adana Sarıçam 500 Konut Projesi', units: 500 },
-      { category: 'Emlak Konut', project: 'İstanbul Finans Şehri Kuleleri', units: 420 },
-    ],
-    completed: [
-      { category: 'Özel', project: 'Bursa Panorama Konutları', units: 180 },
-    ],
-  },
-  {
-    name: 'Kardelen Yapı',
-    city: 'Ankara',
-    contact: 'Elif Yurt',
-    status: 'Teklif Aşaması',
-    owner: 'Metehan Kargılı',
-    ongoing: [
-      { category: 'Kamu', project: 'Ankara Belediye Hizmet Binası', units: 1 },
-    ],
-    completed: [],
-  },
-];
-
-const mechanicalFirms = [
-  {
-    name: 'ADA Group Mekanik',
-    city: 'İstanbul',
-    contact: 'Serkan Aydın',
-    status: 'Çalışıyor',
-    owner: 'Çiğdem Tuna',
-    ongoing: [
-      { category: 'TOKİ', project: 'Adana Sarıçam 500 Konut Projesi', units: 500 },
-    ],
-    completed: [],
-  },
-  {
-    name: 'Breeze Mekanik',
-    city: 'İstanbul',
-    contact: 'Cemre Uğur',
-    status: 'Sipariş Teslim Edildi',
-    owner: 'Metehan Kargılı',
-    ongoing: [
-      { category: 'Emlak Konut', project: 'İstanbul Finans Şehri Kuleleri', units: 4 },
-    ],
-    completed: [
-      { category: 'Özel', project: 'Ege Marina Rezidans', units: 120 },
-    ],
-  },
-];
+const projectStore = [];
+const constructionFirms = [];
+const mechanicalFirms = [];
 
 const firmConfig = {
   construction: {
@@ -336,32 +124,7 @@ const firmConfig = {
   },
 };
 
-const requestStore = [
-  {
-    id: 'req-001',
-    title: 'TOKİ Adana Teklif Revizyonu',
-    owner: 'Çiğdem Tuna',
-    due: '2025-03-18',
-    status: 'Beklemede',
-    notes: 'Ada Sarıçam projesi için revize teklif hazırlanacak.',
-  },
-  {
-    id: 'req-002',
-    title: 'Emlak Konut Finans Onayı',
-    owner: 'Metehan Kargılı',
-    due: '2025-03-15',
-    status: 'Onay Sürecinde',
-    notes: 'Finans onayı sonrası sevkiyat planı kesinleşecek.',
-  },
-  {
-    id: 'req-003',
-    title: 'Bayi Tahsilat Bildirimi',
-    owner: 'Karadeniz Bölge Bayi',
-    due: '2025-03-20',
-    status: 'Ödeme Bekleniyor',
-    notes: 'Bayi üzerinden gelen ödemenin teyidi bekleniyor.',
-  },
-];
+const requestStore = [];
 
 let selectedProjectId = projectStore[0]?.id ?? null;
 let editingProductId = null;
@@ -371,6 +134,95 @@ const logEditState = { visit: null, offer: null, payment: null };
 let projectFormMode = null;
 const defaultSubmitLabels = new Map();
 const logForms = {};
+
+function getRoleLabel(role) {
+  return ROLE_LABELS[role] ?? ROLE_LABELS.standard;
+}
+
+function isManager(user = currentUser) {
+  return (user?.role ?? '') === 'manager';
+}
+
+function getActiveUsers() {
+  return userStore.filter((user) => user.status !== 'inactive');
+}
+
+function findUserByEmail(value) {
+  if (!value) return undefined;
+  const normalized = value.trim().toLocaleLowerCase('tr-TR');
+  return getActiveUsers().find((user) => user.email.toLocaleLowerCase('tr-TR') === normalized);
+}
+
+function populateStaffSelect(select, selectedValue = '') {
+  if (!(select instanceof HTMLSelectElement)) return;
+  const allowEmpty = select.dataset.allowEmpty !== 'false';
+  const staff = getActiveUsers()
+    .filter((user) => user.fullName)
+    .map((user) => ({
+      value: user.fullName,
+      label: `${user.fullName}${user.role === 'manager' ? ' • Yönetici' : ''}`,
+    }));
+
+  const options = [];
+  if (allowEmpty) {
+    options.push('<option value="">Seçin</option>');
+  }
+
+  staff.forEach((person) => {
+    const isSelected = person.value === selectedValue;
+    options.push(
+      `<option value="${escapeHtml(person.value)}"${isSelected ? ' selected' : ''}>${escapeHtml(person.label)}</option>`
+    );
+  });
+
+  if (selectedValue && !staff.some((person) => person.value === selectedValue)) {
+    options.push(
+      `<option value="${escapeHtml(selectedValue)}" selected>${escapeHtml(selectedValue)}</option>`
+    );
+  }
+
+  select.innerHTML = options.join('');
+  if (!selectedValue && !allowEmpty && staff.length) {
+    select.value = staff[0].value;
+  } else if (selectedValue) {
+    select.value = selectedValue;
+  }
+}
+
+function refreshStaffSelectors() {
+  document
+    .querySelectorAll('select[data-staff-select]')
+    .forEach((select) => populateStaffSelect(select, select.value || ''));
+}
+
+function updateRequestFormAccess() {
+  const statusField = requestForm?.elements.namedItem('status');
+  if (statusField instanceof HTMLSelectElement) {
+    const disabled = !isManager();
+    statusField.disabled = disabled;
+    statusField.classList.toggle('is-readonly', disabled);
+  }
+}
+
+function clearUserModalFeedback() {
+  if (!userModalFeedback) return;
+  if (userModalFeedbackTimer) {
+    window.clearTimeout(userModalFeedbackTimer);
+    userModalFeedbackTimer = null;
+  }
+  userModalFeedback.textContent = '';
+  userModalFeedback.classList.remove('is-visible');
+}
+
+function showUserModalFeedback(message, timeout = 2500) {
+  if (!userModalFeedback) return;
+  clearUserModalFeedback();
+  userModalFeedback.textContent = message;
+  userModalFeedback.classList.add('is-visible');
+  userModalFeedbackTimer = window.setTimeout(() => {
+    clearUserModalFeedback();
+  }, timeout);
+}
 
 function getFirmContext(type) {
   return firmConfig[type] ?? null;
@@ -470,6 +322,8 @@ function renderFirmProfilePanel(type, firm) {
 
   const relatedProjects = getRelatedProjectsForFirm(type, firm.name);
   target.innerHTML = buildFirmProfile(firm, type, relatedProjects);
+  const ownerSelect = target.querySelector('select[name="firmOwner"]');
+  populateStaffSelect(ownerSelect, firm.owner ?? '');
 }
 
 function renderFirmProfileByName(type, firmName) {
@@ -526,6 +380,19 @@ function formatCurrency(amount) {
     currency: 'TRY',
     maximumFractionDigits: 0,
   });
+}
+
+function formatFileSize(bytes) {
+  const value = Number(bytes);
+  if (!Number.isFinite(value) || value <= 0) return '—';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let size = value;
+  let unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+  return `${size.toFixed(size < 10 && unitIndex > 0 ? 1 : 0)} ${units[unitIndex]}`;
 }
 
 function deriveSalesStatus(project) {
@@ -646,6 +513,74 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+function buildAttachmentRecords(fileList) {
+  if (!fileList?.length) return [];
+  const uploader = currentUser?.fullName || currentUser?.email || '';
+  const uploadedAt = new Date().toISOString();
+
+  return Array.from(fileList).map((file) => ({
+    id: createId('att'),
+    name: file.name,
+    size: file.size,
+    type: file.type,
+    uploadedBy: uploader,
+    uploadedAt,
+    url: URL.createObjectURL(file),
+    file,
+  }));
+}
+
+function releaseAttachment(attachment) {
+  if (!attachment) return;
+  if (attachment.url) {
+    try {
+      URL.revokeObjectURL(attachment.url);
+    } catch (error) {
+      console.error('URL revoke failed', error);
+    }
+  }
+}
+
+function releaseAttachments(attachments) {
+  if (!Array.isArray(attachments)) return;
+  attachments.forEach(releaseAttachment);
+}
+
+function triggerAttachmentPicker(requestId) {
+  if (!currentUser) return;
+  const request = requestStore.find((item) => item.id === requestId);
+  if (!request) return;
+
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.multiple = true;
+  input.className = 'visually-hidden-input';
+  document.body.appendChild(input);
+  input.addEventListener('change', () => {
+    const files = input.files;
+    if (files?.length) {
+      const newAttachments = buildAttachmentRecords(files);
+      if (newAttachments.length) {
+        if (!Array.isArray(request.attachments)) request.attachments = [];
+        request.attachments.push(...newAttachments);
+        renderRequests();
+      }
+    }
+    input.remove();
+  });
+  input.click();
+}
+
+function removeAttachmentFromRequest(requestId, attachmentId) {
+  const request = requestStore.find((item) => item.id === requestId);
+  if (!request || !Array.isArray(request.attachments)) return;
+  const index = request.attachments.findIndex((attachment) => attachment.id === attachmentId);
+  if (index === -1) return;
+  const [removed] = request.attachments.splice(index, 1);
+  releaseAttachment(removed);
+  renderRequests();
+}
+
 function registerDefaultLabel(form) {
   if (!form) return;
   const submitBtn = form.querySelector('[data-role="submit"]');
@@ -676,6 +611,8 @@ function resetProjectForm(hide = true) {
   if (!projectForm) return;
   projectForm.reset();
   projectFormMode = null;
+  const managerSelect = projectForm.elements.namedItem('manager');
+  populateStaffSelect(managerSelect, currentUser?.fullName ?? '');
   if (hide) {
     projectForm.classList.add('hidden');
   }
@@ -715,6 +652,12 @@ function resetRequestForm() {
   requestForm.reset();
   editingRequestId = null;
   setFormValue(requestForm, 'requestId', '');
+  populateStaffSelect(requestForm.elements.namedItem('owner'), currentUser?.fullName ?? '');
+  updateRequestFormAccess();
+  const attachmentInput = requestForm.elements.namedItem('attachments');
+  if (attachmentInput instanceof HTMLInputElement) {
+    attachmentInput.value = '';
+  }
   resetSubmitLabel(requestForm);
 }
 
@@ -775,6 +718,9 @@ function openProjectForm(mode, project) {
   if (mode === 'create') {
     projectForm.reset();
     const today = new Date().toISOString().slice(0, 10);
+    const managerSelect = projectForm.elements.namedItem('manager');
+    const defaultManager = currentUser?.fullName ?? '';
+    populateStaffSelect(managerSelect, defaultManager);
     setFormValue(projectForm, 'projectId', '');
     setFormValue(projectForm, 'projectName', '');
     setFormValue(projectForm, 'projectCategory', '');
@@ -784,7 +730,6 @@ function openProjectForm(mode, project) {
     setFormValue(projectForm, 'contractor', '');
     setFormValue(projectForm, 'mechanical', '');
     setFormValue(projectForm, 'salesStatus', '');
-    setFormValue(projectForm, 'manager', '');
     setFormValue(projectForm, 'channel', 'direct');
     setFormValue(projectForm, 'channelName', '');
     setFormValue(projectForm, 'scope', '');
@@ -793,6 +738,8 @@ function openProjectForm(mode, project) {
     setFormValue(projectForm, 'progress', '');
     setFormValue(projectForm, 'originalId', '');
   } else if (project) {
+    const managerSelect = projectForm.elements.namedItem('manager');
+    populateStaffSelect(managerSelect, project.manager ?? '');
     setFormValue(projectForm, 'projectId', project.id);
     setFormValue(projectForm, 'projectName', project.name);
     setFormValue(projectForm, 'projectCategory', project.category);
@@ -802,7 +749,6 @@ function openProjectForm(mode, project) {
     setFormValue(projectForm, 'contractor', project.contractor);
     setFormValue(projectForm, 'mechanical', project.mechanical);
     setFormValue(projectForm, 'salesStatus', project.salesStatus);
-    setFormValue(projectForm, 'manager', project.manager);
     setFormValue(projectForm, 'channel', project.channel ?? 'direct');
     setFormValue(projectForm, 'channelName', project.channelName);
     setFormValue(projectForm, 'scope', project.scope);
@@ -1272,7 +1218,7 @@ function buildFirmProfile(firm, type, relatedProjects) {
         </label>
         <label>
           <span>Sorumlu Personel</span>
-          <input type="text" name="firmOwner" value="${escapeHtml(firm.owner ?? '')}" placeholder="Sorumlu" />
+          <select name="firmOwner" data-staff-select data-allow-empty="true"></select>
         </label>
         <label class="full-width">
           <span>Notlar</span>
@@ -1328,6 +1274,7 @@ function renderRequests() {
     return;
   }
 
+  const canManage = isManager();
   requestGrid.classList.remove('is-empty');
   requestGrid.innerHTML = requestStore
     .map((item) => {
@@ -1336,6 +1283,37 @@ function renderRequests() {
       const notesBlock = item.notes
         ? `<p class="request-card__notes">${escapeHtml(item.notes)}</p>`
         : '';
+      const attachments = Array.isArray(item.attachments) ? item.attachments : [];
+      const attachmentsBlock = attachments.length
+        ? `<ul class="request-card__attachments">${attachments
+            .map(
+              (attachment) => `
+                  <li class="request-attachment" data-attachment-id="${escapeHtml(attachment.id)}">
+                    <a href="${escapeHtml(attachment.url || '#')}" download="${escapeHtml(attachment.name)}">${escapeHtml(attachment.name)}</a>
+                    <span class="request-attachment__meta">${escapeHtml(
+                      attachment.uploadedBy || 'Belirtilmedi'
+                    )} • ${formatDisplayDate(attachment.uploadedAt)} • ${formatFileSize(attachment.size)}</span>
+                    ${
+                      canManage
+                        ? '<button class="ghost-btn ghost-btn--link" data-action="remove-attachment">Kaldır</button>'
+                        : ''
+                    }
+                  </li>
+                `
+            )
+            .join('')}</ul>`
+        : '<p class="request-card__no-attachment muted">Belge eklenmemiş.</p>';
+      const createdBy = item.createdBy ? `<span>Oluşturan: ${escapeHtml(item.createdBy)}</span>` : '';
+      const createdAtLabel = item.createdAt ? formatDisplayDate(item.createdAt) : '';
+      const createdInfo = createdAtLabel ? `<span>Oluşturma: ${escapeHtml(createdAtLabel)}</span>` : '';
+      const actions = [
+        '<button class="ghost-btn" data-action="add-attachment">Belge Ekle</button>',
+        canManage ? '<button class="ghost-btn" data-action="edit-request">Düzenle</button>' : '',
+        canManage ? '<button class="ghost-btn danger" data-action="delete-request">Sil</button>' : '',
+      ]
+        .filter(Boolean)
+        .join('');
+
       return `
         <article class="request-card" data-request-id="${escapeHtml(item.id)}">
           <header class="request-card__header">
@@ -1346,11 +1324,10 @@ function renderRequests() {
           <div class="request-card__meta">
             <span>Sorumlu: <strong>${escapeHtml(item.owner || '-')}</strong></span>
             <span>Durum: <span class="status-pill status-pill--${tone}">${escapeHtml(item.status || '-')}</span></span>
+            ${createdBy}${createdInfo}
           </div>
-          <div class="request-card__actions">
-            <button class="ghost-btn" data-action="edit-request">Düzenle</button>
-            <button class="ghost-btn danger" data-action="delete-request">Sil</button>
-          </div>
+          ${attachmentsBlock}
+          <div class="request-card__actions">${actions}</div>
         </article>
       `;
     })
@@ -1358,23 +1335,26 @@ function renderRequests() {
 }
 
 function openRequestEditor(requestId) {
-  if (!requestForm) return;
+  if (!requestForm || !isManager()) return;
   const request = requestStore.find((item) => item.id === requestId);
   if (!request) return;
   editingRequestId = request.id;
   setSubmitLabel(requestForm, 'Güncelle');
+  populateStaffSelect(requestForm.elements.namedItem('owner'), request.owner ?? '');
   setFormValue(requestForm, 'requestId', request.id);
   setFormValue(requestForm, 'title', request.title);
-  setFormValue(requestForm, 'owner', request.owner);
   setFormValue(requestForm, 'due', request.due);
   setFormValue(requestForm, 'status', request.status);
   setFormValue(requestForm, 'notes', request.notes);
+  updateRequestFormAccess();
 }
 
 function deleteRequest(requestId) {
+  if (!isManager()) return false;
   const index = requestStore.findIndex((item) => item.id === requestId);
   if (index === -1) return false;
-  requestStore.splice(index, 1);
+  const [removed] = requestStore.splice(index, 1);
+  releaseAttachments(removed?.attachments);
   if (editingRequestId === requestId) {
     resetRequestForm();
   }
@@ -1392,6 +1372,8 @@ function setupForms() {
   registerDefaultLabel(timelineForm);
   registerDefaultLabel(requestForm);
   [visitForm, offerForm, paymentForm].forEach((form) => registerDefaultLabel(form));
+  refreshStaffSelectors();
+  updateRequestFormAccess();
 
   logForms.visit = { form: visitForm, collection: 'visits' };
   logForms.offer = { form: offerForm, collection: 'offers' };
@@ -1590,7 +1572,7 @@ function setupForms() {
 
   requestForm?.addEventListener('submit', (event) => {
     event.preventDefault();
-    if (!requestForm) return;
+    if (!requestForm || !currentUser) return;
     const formData = new FormData(requestForm);
     const title = formData.get('title')?.trim();
     if (!title) {
@@ -1606,20 +1588,44 @@ function setupForms() {
       return;
     }
 
+    const canManage = isManager();
+    const ownerValue = formData.get('owner')?.trim() || currentUser.fullName || '';
+    const statusValue = canManage
+      ? formData.get('status')?.trim() || DEFAULT_REQUEST_STATUS
+      : DEFAULT_REQUEST_STATUS;
+    const notesValue = formData.get('notes')?.trim() ?? '';
+    const attachmentsInput = requestForm.elements.namedItem('attachments');
+    const newAttachments = attachmentsInput instanceof HTMLInputElement ? buildAttachmentRecords(attachmentsInput.files) : [];
+
     const payload = {
       id: requestId,
       title,
-      owner: formData.get('owner')?.trim() ?? '',
+      owner: ownerValue,
       due: formData.get('due') || '',
-      status: formData.get('status')?.trim() ?? '',
-      notes: formData.get('notes')?.trim() ?? '',
+      status: statusValue,
+      notes: notesValue,
     };
 
     if (editingRequestId) {
+      if (!canManage) {
+        window.alert('Talepleri yalnızca yönetici güncelleyebilir.');
+        return;
+      }
       const target = requestStore.find((item) => item.id === editingRequestId);
-      if (target) Object.assign(target, payload);
+      if (target) {
+        Object.assign(target, payload);
+        if (newAttachments.length) {
+          if (!Array.isArray(target.attachments)) target.attachments = [];
+          target.attachments.push(...newAttachments);
+        }
+      }
     } else {
-      requestStore.push(payload);
+      requestStore.push({
+        ...payload,
+        createdAt: new Date().toISOString(),
+        createdBy: currentUser.fullName || currentUser.email || '',
+        attachments: newAttachments,
+      });
     }
 
     resetRequestForm();
@@ -1643,8 +1649,22 @@ function setupForms() {
     }
 
     if (button.dataset.action === 'delete-request') {
+      if (!isManager()) return;
       if (!window.confirm('Bu talebi silmek istediğinize emin misiniz?')) return;
       deleteRequest(requestId);
+      return;
+    }
+
+    if (button.dataset.action === 'add-attachment') {
+      triggerAttachmentPicker(requestId);
+      return;
+    }
+
+    if (button.dataset.action === 'remove-attachment') {
+      if (!isManager()) return;
+      const attachmentId = button.closest('[data-attachment-id]')?.dataset.attachmentId;
+      if (!attachmentId) return;
+      removeAttachmentFromRequest(requestId, attachmentId);
     }
   });
 
@@ -1796,6 +1816,8 @@ function setupForms() {
       }
     });
   });
+
+  resetRequestForm();
 }
 
 function setupNavigation() {
@@ -2015,6 +2037,209 @@ function setupModal() {
     });
 }
 
+function renderUserTable() {
+  if (!userTableBody) return;
+  if (!userStore.length) {
+    userTableBody.innerHTML = '<tr><td colspan="3">Kullanıcı bulunmuyor.</td></tr>';
+    return;
+  }
+
+  userTableBody.innerHTML = userStore
+    .map((user) => {
+      const roleSelect = `
+        <select data-action="change-role" ${user.id === currentUser?.id ? 'data-self="true"' : ''}>
+          <option value="standard" ${user.role === 'standard' ? 'selected' : ''}>Standart</option>
+          <option value="manager" ${user.role === 'manager' ? 'selected' : ''}>Yönetici</option>
+        </select>
+      `;
+      return `
+        <tr data-user-id="${escapeHtml(user.id)}">
+          <td>
+            <span class="user-table__name">${escapeHtml(user.fullName)}</span>
+            <span class="user-table__email">${escapeHtml(user.email)}</span>
+          </td>
+          <td>
+            <span class="role-badge role-badge--${user.role}">${escapeHtml(getRoleLabel(user.role))}</span>
+          </td>
+          <td class="user-table__actions">
+            ${roleSelect}
+            <button class="ghost-btn" data-action="reset-password">Şifre Belirle</button>
+          </td>
+        </tr>
+      `;
+    })
+    .join('');
+}
+
+function openUserModal() {
+  if (!userModal || !isManager()) return;
+  clearUserModalFeedback();
+  renderUserTable();
+  refreshStaffSelectors();
+  userModal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeUserModal() {
+  if (!userModal) return;
+  userModal.classList.add('hidden');
+  document.body.style.overflow = '';
+  clearUserModalFeedback();
+}
+
+function updateAuthUI() {
+  const authenticated = Boolean(currentUser);
+  document.body.classList.toggle('is-authenticated', authenticated);
+  if (authScreen) {
+    authScreen.classList.toggle('hidden', authenticated);
+  }
+  if (currentUserName) {
+    currentUserName.textContent = currentUser?.fullName ?? '';
+  }
+  if (currentUserRole) {
+    currentUserRole.textContent = currentUser ? getRoleLabel(currentUser.role) : '';
+  }
+  if (userAdminBtn) {
+    userAdminBtn.classList.toggle('hidden', !isManager());
+  }
+  if (!authenticated || !isManager()) {
+    closeUserModal();
+  }
+  refreshStaffSelectors();
+  updateRequestFormAccess();
+  renderRequests();
+}
+
+function setupAuth() {
+  loginForm?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!loginForm) return;
+    const formData = new FormData(loginForm);
+    const username = formData.get('username')?.toString().trim();
+    const password = formData.get('password')?.toString() ?? '';
+    const user = findUserByEmail(username ?? '');
+    if (!user || !user.password || user.password !== password) {
+      if (authError) {
+        authError.textContent = 'Kullanıcı adı veya şifre hatalı.';
+      }
+      return;
+    }
+    currentUser = user;
+    loginForm.reset();
+    if (authError) authError.textContent = '';
+    updateAuthUI();
+    resetProjectForm();
+    resetRequestForm();
+  });
+
+  logoutBtn?.addEventListener('click', () => {
+    currentUser = null;
+    updateAuthUI();
+    resetProjectForm();
+    resetRequestForm();
+  });
+
+  userAdminBtn?.addEventListener('click', () => {
+    openUserModal();
+  });
+
+  userModal?.addEventListener('click', (event) => {
+    if (event.target === userModal) {
+      closeUserModal();
+    }
+  });
+
+  userModal?.querySelector('[data-action="close-user-modal"]')?.addEventListener('click', () => {
+    closeUserModal();
+  });
+
+  if (userForm) {
+    registerDefaultLabel(userForm);
+    userForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const formData = new FormData(userForm);
+      const fullName = formData.get('fullName')?.toString().trim() ?? '';
+      const email = formData.get('email')?.toString().trim() ?? '';
+      const password = formData.get('password')?.toString() ?? '';
+      const role = formData.get('role') === 'manager' ? 'manager' : 'standard';
+
+      if (!fullName || !email || !password) {
+        showFormFeedback(userForm, 'Tüm alanlar zorunludur.');
+        return;
+      }
+
+      const normalizedEmail = email.toLocaleLowerCase('tr-TR');
+      const existing = findUserByEmail(normalizedEmail);
+      if (existing) {
+        showFormFeedback(userForm, 'Bu kullanıcı adı zaten tanımlı.');
+        return;
+      }
+
+      userStore.push({
+        id: createId('user'),
+        fullName,
+        email: normalizedEmail,
+        password,
+        role,
+        status: 'active',
+        createdAt: new Date().toISOString(),
+      });
+
+      showFormFeedback(userForm, 'Kullanıcı oluşturuldu');
+      userForm.reset();
+      renderUserTable();
+      refreshStaffSelectors();
+      updateAuthUI();
+    });
+  }
+
+  userTableBody?.addEventListener('change', (event) => {
+    const select = event.target instanceof HTMLSelectElement ? event.target : null;
+    if (!select || select.dataset.action !== 'change-role') return;
+    const row = select.closest('tr[data-user-id]');
+    const userId = row?.dataset.userId;
+    if (!userId) return;
+    const user = userStore.find((item) => item.id === userId);
+    if (!user) return;
+    const newRole = select.value === 'manager' ? 'manager' : 'standard';
+    if (user.role === newRole) return;
+
+    if (user.role === 'manager' && newRole !== 'manager') {
+      const hasAnother = userStore.some((item) => item.role === 'manager' && item.id !== userId);
+      if (!hasAnother) {
+        select.value = user.role;
+        showUserModalFeedback('En az bir yönetici bulunmalıdır.');
+        return;
+      }
+    }
+
+    user.role = newRole;
+    renderUserTable();
+    refreshStaffSelectors();
+    updateAuthUI();
+    showUserModalFeedback('Rol güncellendi.');
+  });
+
+  userTableBody?.addEventListener('click', (event) => {
+    const button = event.target instanceof HTMLElement ? event.target.closest('button[data-action]') : null;
+    if (!button) return;
+    const row = button.closest('tr[data-user-id]');
+    const userId = row?.dataset.userId;
+    if (!userId) return;
+    const user = userStore.find((item) => item.id === userId);
+    if (!user) return;
+
+    if (button.dataset.action === 'reset-password') {
+      const newPassword = window.prompt('Yeni şifreyi girin:');
+      if (!newPassword) return;
+      user.password = newPassword;
+      showUserModalFeedback('Şifre güncellendi.');
+    }
+  });
+
+  updateAuthUI();
+}
+
 function init() {
   renderProjectTable();
   populateProjectSelector();
@@ -2037,4 +2262,5 @@ function init() {
   activateView('project-pool');
 }
 
+setupAuth();
 init();
