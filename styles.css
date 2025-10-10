@@ -26,6 +26,15 @@ body {
   min-height: 100vh;
 }
 
+input[type='text'],
+input[type='search'],
+input[type='email'],
+input[type='url'],
+input[type='tel'],
+textarea {
+  text-transform: uppercase;
+}
+
 body.is-authenticated .auth-screen {
   display: none;
 }
@@ -1195,9 +1204,11 @@ form .full-width {
   position: fixed;
   inset: 0;
   background: rgba(12, 24, 53, 0.55);
-  display: grid;
-  place-items: center;
-  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  overflow-y: auto;
 }
 
 .modal__content {
@@ -1209,6 +1220,9 @@ form .full-width {
   display: grid;
   gap: 1.2rem;
   position: relative;
+  margin: 0 auto;
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
 }
 
 .modal__content--wide {
