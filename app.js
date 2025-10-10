@@ -255,6 +255,8 @@ function normalizeProjectRecord(record) {
   const project = cloneProject(record);
   if (!project.id) return null;
   ensureProjectCollections(project);
+  project.category = normalizeProjectCategory(project.category);
+  project.housingUnits = normalizeHousingUnits(project.housingUnits);
   project.salesStatus = project.salesStatus || deriveSalesStatus(project);
   return project;
 }
@@ -316,6 +318,19 @@ const PROJECT_FIELD_ALIASES = {
   name: ['proje adı', 'proje adi', 'adı', 'adi', 'ad', 'project name', 'proje'],
   category: ['kategori', 'proje kategorisi'],
   city: ['il', 'şehir', 'sehir', 'city', 'lokasyon', 'lokasyon ili'],
+  housingUnits: [
+    'konut sayısı',
+    'konut sayisi',
+    'daire sayısı',
+    'daire sayisi',
+    'konut adedi',
+    'konut adet',
+    'bağımsız bölüm sayısı',
+    'bagimsiz bolum sayisi',
+    'bagimsiz bolum',
+    'bağımsız bölüm',
+    'toplam konut',
+  ],
   addedAt: [
     'eklenme tarihi',
     'eklenme',
@@ -493,6 +508,17 @@ const INSTITUTION_KEYWORDS = ['belediye', 'idare', 'kurum', 'bakan', 'müdürlü
 const TEAM_KEYWORDS = ['ekip', 'team', 'grup', 'satış', 'satis', 'pazarlama', 'mühendis', 'muhendis'];
 const SCOPE_KEYWORDS = ['adet', 'daire', 'blok', 'm²', 'm2', 'metre', 'konut', 'faz', 'tower'];
 const PROGRESS_KEYWORDS = ['ilerleme', 'tamam', 'inşaat', 'insaat', 'durum', 'aşama', 'asama', 'not'];
+const HOUSING_KEYWORDS = [
+  'konut',
+  'daire',
+  'bagimsiz',
+  'bağımsız',
+  'adet',
+  'blok',
+  'toplam konut',
+  'bağımsız bölüm',
+  'bagimsiz bolum',
+];
 const DEALER_NAME_KEYWORDS = ['bayi', 'dealer', 'distrib', 'fran', 'marka'];
 
 const PROJECT_EXPORT_HEADERS = [
@@ -500,6 +526,7 @@ const PROJECT_EXPORT_HEADERS = [
   'Proje Adı',
   'Kategori',
   'İl',
+  'Konut Sayısı',
   'Eklenme Tarihi',
   'Son Güncelleme',
   'Bağlantı Türü',
@@ -601,6 +628,63 @@ function resolveProjectField(header) {
 function sanitizeText(value) {
   if (value === undefined || value === null) return '';
   return String(value).trim();
+}
+
+function normalizeProjectCategory(value) {
+  const text = sanitizeText(value);
+  if (!text) return 'Özel';
+  const normalized = text.toLocaleLowerCase('tr-TR');
+  if (normalized.includes('toki')) return 'TOKİ';
+  if (normalized.includes('toplu konut')) return 'TOKİ';
+  if (normalized.includes('emlak')) return 'Emlak Konut';
+  if (
+    normalized.includes('kamu') ||
+    normalized.includes('beled') ||
+    normalized.includes('resmi') ||
+    normalized.includes('devlet') ||
+    normalized.includes('idare')
+  ) {
+    return 'Kamu';
+  }
+  if (
+    normalized.includes('özel') ||
+    normalized.includes('ozel') ||
+    normalized.includes('private') ||
+    normalized.includes('residence') ||
+    normalized.includes('ticari') ||
+    normalized.includes('residans')
+  ) {
+    return 'Özel';
+  }
+  return 'Özel';
+}
+
+function normalizeHousingUnits(value) {
+  if (value === undefined || value === null || value === '') return '';
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || value <= 0) return '';
+    return String(Math.round(value));
+  }
+  const text = sanitizeText(value);
+  if (!text) return '';
+  const cleaned = text.replace(/\s+/g, ' ');
+  const match = cleaned.match(/\d[\d.,]*/u);
+  if (!match) {
+    return cleaned;
+  }
+  const digits = match[0].replace(/\D/g, '');
+  if (!digits) {
+    return cleaned;
+  }
+  const numeric = Number(digits);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return '';
+  }
+  const normalizedNumber = String(Math.trunc(numeric));
+  if (!/[a-zçğıöşü]/i.test(cleaned)) {
+    return normalizedNumber;
+  }
+  return cleaned.replace(match[0], normalizedNumber);
 }
 
 function gatherColumnValues(rows, columnIndex, startIndex, maxSamples = 40) {
@@ -712,6 +796,9 @@ function scoreColumnForField(field, headerNormalized, rawValues) {
   const progressKeywordRatio = lowerValues.filter((value) =>
     PROGRESS_KEYWORDS.some((keyword) => value.includes(keyword))
   ).length / total;
+  const housingKeywordRatio = lowerValues.filter((value) =>
+    HOUSING_KEYWORDS.some((keyword) => value.includes(keyword))
+  ).length / total;
   const personMatchRatio = sanitizedValues.filter((value) => isLikelyPersonName(value)).length / total;
   const staffNames = new Set(userStore.map((user) => user.fullName.toLocaleLowerCase('tr-TR')));
   const knownStaffRatio = lowerValues.filter((value) => staffNames.has(value)).length / total;
@@ -756,6 +843,20 @@ function scoreColumnForField(field, headerNormalized, rawValues) {
         score += 4;
       }
       if (spaceRatio < 0.3) score += 0.5;
+      break;
+    case 'housingUnits':
+      score += numericRatio * 8;
+      score += housingKeywordRatio * 8;
+      if (shortLengthRatio > 0.4) score += 1.5;
+      if (
+        header.includes('konut') ||
+        header.includes('daire') ||
+        header.includes('adet') ||
+        header.includes('bagimsiz') ||
+        header.includes('bağımsız')
+      ) {
+        score += 4;
+      }
       break;
     case 'addedAt':
       score += dateRatio * 9;
@@ -1309,6 +1410,23 @@ function formatDisplayDate(value) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('tr-TR');
 }
 
+function formatHousingUnits(value) {
+  const normalized = normalizeHousingUnits(value);
+  if (!normalized) return '-';
+  const digits = normalized.replace(/\D/g, '');
+  if (digits) {
+    const numeric = Number(digits);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      const formatted = new Intl.NumberFormat('tr-TR').format(Math.trunc(numeric));
+      if (/^[0-9]+$/.test(normalized)) {
+        return formatted;
+      }
+      return normalized.replace(digits, formatted);
+    }
+  }
+  return normalized;
+}
+
 function getProject(projectId) {
   if (!projectId) return undefined;
   return projectStore.find((item) => item.id === projectId);
@@ -1542,6 +1660,7 @@ function openProjectForm(mode, project) {
     setFormValue(projectForm, 'projectName', '');
     setFormValue(projectForm, 'projectCategory', '');
     setFormValue(projectForm, 'projectCity', '');
+    setFormValue(projectForm, 'housingUnits', '');
     setFormValue(projectForm, 'addedAt', today);
     setFormValue(projectForm, 'updatedAt', today);
     setFormValue(projectForm, 'contractor', '');
@@ -1561,6 +1680,7 @@ function openProjectForm(mode, project) {
     setFormValue(projectForm, 'projectName', project.name);
     setFormValue(projectForm, 'projectCategory', project.category);
     setFormValue(projectForm, 'projectCity', project.city);
+    setFormValue(projectForm, 'housingUnits', normalizeHousingUnits(project.housingUnits));
     setFormValue(projectForm, 'addedAt', project.addedAt);
     setFormValue(projectForm, 'updatedAt', project.updatedAt);
     setFormValue(projectForm, 'contractor', project.contractor);
@@ -1579,16 +1699,39 @@ function openProjectForm(mode, project) {
 function renderProjectTable(filterText = '') {
   const query = filterText.toLocaleLowerCase('tr-TR');
   const filteredProjects = projectStore.filter((project) => {
-    const text = `${project.name} ${project.city} ${project.category}`.toLocaleLowerCase('tr-TR');
+    const housingText = normalizeHousingUnits(project.housingUnits);
+    const text = [
+      project.id,
+      project.name,
+      project.city,
+      project.category,
+      project.contractor,
+      project.mechanical,
+      project.manager,
+      project.scope,
+      project.responsibleInstitution,
+      housingText,
+      project.channelName,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLocaleLowerCase('tr-TR');
     return text.includes(query);
   });
 
+  let normalizedDuringRender = false;
   projectTableBody.innerHTML = filteredProjects
     .map((project) => {
       const statusClass = project.channel === 'direct' ? 'status-direct' : 'status-dealer';
       const channelLabel = project.channel === 'direct' ? 'Doğrudan' : `Bayi (${project.channelName ?? 'Belirtilmedi'})`;
       const salesStatus = deriveSalesStatus(project);
       project.salesStatus = salesStatus;
+      const normalizedHousing = normalizeHousingUnits(project.housingUnits);
+      if (project.housingUnits !== normalizedHousing) {
+        project.housingUnits = normalizedHousing;
+        normalizedDuringRender = true;
+      }
+      const housingLabel = formatHousingUnits(project.housingUnits);
 
       return `
         <tr data-project-id="${project.id}" class="${project.id === selectedProjectId ? 'is-active' : ''}">
@@ -1597,6 +1740,7 @@ function renderProjectTable(filterText = '') {
           <td>${formatDisplayDate(project.updatedAt)}</td>
           <td>${project.category}</td>
           <td>${project.city}</td>
+          <td>${escapeHtml(housingLabel)}</td>
           <td>${project.name}</td>
           <td>${project.contractor}</td>
           <td>${project.mechanical}</td>
@@ -1609,8 +1753,13 @@ function renderProjectTable(filterText = '') {
 
   const totals = { TOKİ: 0, 'Emlak Konut': 0, Özel: 0, Kamu: 0 };
   projectStore.forEach((project) => {
-    if (totals[project.category] !== undefined) {
-      totals[project.category] += 1;
+    const category = normalizeProjectCategory(project.category);
+    if (category !== project.category) {
+      project.category = category;
+      normalizedDuringRender = true;
+    }
+    if (totals[category] !== undefined) {
+      totals[category] += 1;
     }
   });
 
@@ -1618,6 +1767,10 @@ function renderProjectTable(filterText = '') {
   counts['Emlak Konut'].textContent = totals['Emlak Konut'];
   counts['Özel'].textContent = totals['Özel'];
   counts['Kamu'].textContent = totals['Kamu'];
+
+  if (normalizedDuringRender) {
+    schedulePersistState();
+  }
 }
 
 function populateProjectSelector() {
@@ -1651,11 +1804,15 @@ function renderProjectDetail(projectId) {
 
   const salesStatus = deriveSalesStatus(project);
   project.salesStatus = salesStatus;
+  project.category = normalizeProjectCategory(project.category);
+  project.housingUnits = normalizeHousingUnits(project.housingUnits);
+  const housingUnits = formatHousingUnits(project.housingUnits);
 
   projectInfo.innerHTML = `
     <dt>Proje Kodu</dt><dd>${project.id}</dd>
     <dt>Kategori</dt><dd>${project.category}</dd>
     <dt>İl</dt><dd>${project.city}</dd>
+    <dt>Konut Sayısı</dt><dd>${escapeHtml(housingUnits)}</dd>
     <dt>Eklenme Tarihi</dt><dd>${formatDisplayDate(project.addedAt)}</dd>
     <dt>Son Güncelleme</dt><dd>${formatDisplayDate(project.updatedAt)}</dd>
     <dt>Yüklenici</dt><dd>${project.contractor || '-'}</dd>
@@ -1817,6 +1974,8 @@ function applyImportedProjectRows(rows) {
         record[field] = normalizeDateCell(cell);
       } else if (field === 'channel') {
         record[field] = normalizeChannelValue(cell);
+      } else if (field === 'housingUnits') {
+        record[field] = normalizeHousingUnits(cell);
       } else {
         record[field] = sanitizeText(cell);
       }
@@ -1839,8 +1998,9 @@ function applyImportedProjectRows(rows) {
     const payload = {
       id,
       name: name || id,
-      category: sanitizeText(record.category) || 'Özel',
+      category: normalizeProjectCategory(record.category),
       city: sanitizeText(record.city),
+      housingUnits: normalizeHousingUnits(record.housingUnits),
       addedAt: record.addedAt || today,
       updatedAt: record.updatedAt || record.addedAt || today,
       contractor: sanitizeText(record.contractor),
@@ -1864,6 +2024,7 @@ function applyImportedProjectRows(rows) {
       existing.name = payload.name;
       existing.category = payload.category;
       existing.city = payload.city;
+      existing.housingUnits = payload.housingUnits;
       existing.addedAt = payload.addedAt;
       existing.updatedAt = payload.updatedAt;
       existing.contractor = payload.contractor;
@@ -1888,6 +2049,7 @@ function applyImportedProjectRows(rows) {
         name: payload.name,
         category: payload.category,
         city: payload.city,
+        housingUnits: payload.housingUnits,
         addedAt: payload.addedAt,
         updatedAt: payload.updatedAt,
         contractor: payload.contractor,
@@ -1969,6 +2131,7 @@ function exportProjectsToExcel() {
       'Proje Adı': project.name,
       Kategori: project.category,
       'İl': project.city,
+      'Konut Sayısı': normalizeHousingUnits(project.housingUnits),
       'Eklenme Tarihi': project.addedAt,
       'Son Güncelleme': project.updatedAt,
       'Bağlantı Türü': project.channel === 'dealer' ? 'Bayi' : 'Doğrudan',
@@ -2004,6 +2167,8 @@ function exportProjectsToExcel() {
       case 'Eklenme Tarihi':
       case 'Son Güncelleme':
         return { wch: 18 };
+      case 'Konut Sayısı':
+        return { wch: 16 };
       case 'Bağlantı Türü':
         return { wch: 20 };
       case 'Bayi / Kanal':
@@ -2420,7 +2585,13 @@ function renderFirmTable(target, items, searchText = '') {
   if (!target) return;
   const query = searchText.toLocaleLowerCase('tr-TR');
   target.innerHTML = items
-    .filter((item) => (item.name ?? '').toLocaleLowerCase('tr-TR').includes(query))
+    .filter((item) => {
+      const text = [item.name, item.city, item.contact, item.status, item.owner]
+        .filter(Boolean)
+        .join(' ')
+        .toLocaleLowerCase('tr-TR');
+      return text.includes(query);
+    })
     .map((firm) => {
       const name = firm.name ?? '';
       const city = firm.city?.trim() || '-';
@@ -2694,6 +2865,7 @@ function setupForms() {
       name: formData.get('projectName')?.trim() ?? '',
       category: formData.get('projectCategory') ?? '',
       city: formData.get('projectCity')?.trim() ?? '',
+      housingUnits: normalizeHousingUnits(formData.get('housingUnits')),
       addedAt: formData.get('addedAt') || '',
       updatedAt: formData.get('updatedAt') || '',
       contractor: formData.get('contractor')?.trim() ?? '',
@@ -2712,6 +2884,11 @@ function setupForms() {
     if (!payload.addedAt) payload.addedAt = today;
     if (!payload.updatedAt) payload.updatedAt = payload.addedAt;
 
+    payload.category = normalizeProjectCategory(payload.category);
+    if (payload.channel !== 'dealer') {
+      payload.channelName = '';
+    }
+
     if (projectFormMode === 'edit') {
       const originalId = formData.get('originalId') || selectedProjectId;
       const project = getProject(originalId);
@@ -2724,6 +2901,7 @@ function setupForms() {
       project.name = payload.name;
       project.category = payload.category;
       project.city = payload.city;
+      project.housingUnits = payload.housingUnits;
       project.addedAt = payload.addedAt;
       project.updatedAt = payload.updatedAt;
       project.contractor = payload.contractor;
@@ -2749,6 +2927,7 @@ function setupForms() {
         updatedAt: payload.updatedAt,
         category: payload.category,
         city: payload.city,
+        housingUnits: payload.housingUnits,
         name: payload.name,
         contractor: payload.contractor,
         mechanical: payload.mechanical,
