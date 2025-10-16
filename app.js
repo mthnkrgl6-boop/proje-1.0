@@ -1949,6 +1949,7 @@ function applyImportedProjectRows(rows) {
   const today = new Date().toISOString().slice(0, 10);
   let created = 0;
   let updated = 0;
+  let removed = 0;
   const processedIds = [];
   const processedSet = new Set();
   let refreshConstruction = false;
@@ -2085,6 +2086,20 @@ function applyImportedProjectRows(rows) {
     }
   }
 
+  if (processedSet.size) {
+    for (let index = projectStore.length - 1; index >= 0; index -= 1) {
+      const project = projectStore[index];
+      if (processedSet.has(project.id)) {
+        continue;
+      }
+      projectStore.splice(index, 1);
+      removed += 1;
+      if (selectedProjectId === project.id) {
+        selectedProjectId = null;
+      }
+    }
+  }
+
   if (created === 0 && updated === 0) {
     throw new Error('Excel dosyasında aktarılacak uygun proje kaydı bulunamadı.');
   }
@@ -2112,7 +2127,7 @@ function applyImportedProjectRows(rows) {
 
   renderAssignments();
   schedulePersistState();
-  return { created, updated };
+  return { created, updated, removed };
 }
 
 function exportProjectsToExcel() {
@@ -3496,12 +3511,18 @@ function setupProjectImportExport() {
       const result = await importProjectsFromFile(file);
       const created = result?.created ?? 0;
       const updated = result?.updated ?? 0;
+      const removed = result?.removed ?? 0;
       const parts = [];
       if (created) parts.push(`${created} yeni`);
       if (updated) parts.push(`${updated} güncel`);
+      if (removed) parts.push(`${removed} silindi`);
       const summary = parts.length ? parts.join(', ') : 'kayıt bulunamadı';
-      const tone = created || updated ? 'success' : 'warning';
-      const message = created || updated
+      const tone = created || updated || removed ? 'success' : 'warning';
+      if (projectSearch) {
+        projectSearch.value = '';
+        renderProjectTable('');
+      }
+      const message = created || updated || removed
         ? `Excel aktarımı tamamlandı: ${summary}.`
         : 'Excel dosyasında aktarılacak kayıt bulunamadı.';
       showProjectImportFeedback(message, tone, 7000);
