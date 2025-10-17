@@ -47,6 +47,8 @@
       <button class="nav-link" data-target="mechanical-detail">Mekanik Firma Detay</button>
       <button class="nav-link" data-target="assignments">Atamalar</button>
       <button class="nav-link" data-target="requests">Talepler</button>
+      <button class="nav-link" data-target="project-maps">Haritalar</button>
+      <button class="nav-link" data-target="reporting">Raporlama</button>
     </nav>
     <div class="topbar__actions">
       <button class="ghost-btn" id="userAdminBtn">Kullanıcı Yönetimi</button>
@@ -127,6 +129,7 @@
               <th>Son İşlem Tarihi</th>
               <th>Kategori</th>
               <th>İl</th>
+              <th>Konut Sayısı</th>
               <th>Proje Adı</th>
               <th>Yüklenici</th>
               <th>Mekanik Yüklenici</th>
@@ -182,6 +185,10 @@
               <label>
                 <span>İl</span>
                 <input type="text" name="projectCity" required />
+              </label>
+              <label>
+                <span>Konut Sayısı</span>
+                <input type="number" name="housingUnits" min="0" step="1" inputmode="numeric" />
               </label>
               <label>
                 <span>Eklenme Tarihi</span>
@@ -621,7 +628,76 @@
             <button type="button" class="ghost-btn" data-action="cancel-request">İptal</button>
           </div>
         </form>
-        <div class="request-grid" id="requestGrid"></div>
+      <div class="request-grid" id="requestGrid"></div>
+    </div>
+  </section>
+
+    <section class="dashboard hidden" data-view="project-maps">
+      <header class="section-header">
+        <div>
+          <h2>Türkiye Proje Haritası</h2>
+          <p class="muted">Kayıtlı projelerin konumlarını harita üzerinde görüntüleyin.</p>
+        </div>
+      </header>
+      <div class="map-controls">
+        <form class="map-key-form" id="mapKeyForm">
+          <label>
+            <span>Google Maps API Anahtarı</span>
+            <input
+              type="text"
+              id="mapKeyInput"
+              name="googleMapsKey"
+              placeholder="AIza..."
+              autocomplete="off"
+              data-no-uppercase="true"
+            />
+          </label>
+          <div class="map-key-actions">
+            <button type="submit" class="primary-btn">Anahtarı Kaydet</button>
+            <button type="button" class="ghost-btn" id="clearMapKeyBtn">Anahtarı Kaldır</button>
+          </div>
+          <p class="form-feedback" data-role="feedback" id="mapKeyFeedback"></p>
+        </form>
+      </div>
+      <div class="map-layout">
+        <div class="map-wrapper">
+          <div
+            id="projectMap"
+            class="map-canvas"
+            role="application"
+            aria-label="Proje Haritası"
+            data-google-maps-key=""
+          ></div>
+        </div>
+        <aside class="map-sidebar">
+          <h3>Haritadaki Projeler</h3>
+          <p class="muted">Listeden bir projeye tıklayarak haritada konumuna odaklanın.</p>
+          <ul class="map-project-list" id="mapProjectList"></ul>
+        </aside>
+      </div>
+    </section>
+
+    <section class="dashboard hidden" data-view="reporting">
+      <header class="section-header">
+        <div>
+          <h2>Raporlama</h2>
+          <p class="muted">Proje havuzuna ait temel metrikler ve özetleri inceleyin.</p>
+        </div>
+      </header>
+      <div class="report-summary" id="reportSummaryCards"></div>
+      <div class="report-panels">
+        <article class="report-panel">
+          <h3>Kategori Dağılımı</h3>
+          <ul class="report-list" id="reportCategoryList"></ul>
+        </article>
+        <article class="report-panel">
+          <h3>İlk 5 İl</h3>
+          <ul class="report-list" id="reportCityList"></ul>
+        </article>
+        <article class="report-panel">
+          <h3>Satış Kanalı</h3>
+          <ul class="report-list" id="reportChannelList"></ul>
+        </article>
       </div>
     </section>
   </main>
@@ -694,6 +770,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://unpkg.com/@googlemaps/js-api-loader@1.16.1/dist/index.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
