@@ -357,6 +357,8 @@ function normalizeProjectRecord(record) {
   const project = cloneProject(record);
   if (!project.id) return null;
   ensureProjectCollections(project);
+  project.city = sanitizeText(project.city);
+  project.district = sanitizeText(project.district);
   project.category = normalizeProjectCategory(project.category);
   project.housingUnits = normalizeHousingUnits(project.housingUnits);
   project.salesStatus = project.salesStatus || deriveSalesStatus(project);
@@ -420,6 +422,7 @@ const PROJECT_FIELD_ALIASES = {
   name: ['proje adı', 'proje adi', 'adı', 'adi', 'ad', 'project name', 'proje'],
   category: ['kategori', 'proje kategorisi'],
   city: ['il', 'şehir', 'sehir', 'city', 'lokasyon', 'lokasyon ili'],
+  district: ['ilçe', 'ilce', 'district'],
   housingUnits: [
     'konut sayısı',
     'konut sayisi',
@@ -628,6 +631,7 @@ const PROJECT_EXPORT_HEADERS = [
   'Proje Adı',
   'Kategori',
   'İl',
+  'İlçe',
   'Konut Sayısı',
   'Eklenme Tarihi',
   'Son Güncelleme',
@@ -1771,6 +1775,7 @@ function openProjectForm(mode, project) {
     setFormValue(projectForm, 'projectName', '');
     setFormValue(projectForm, 'projectCategory', '');
     setFormValue(projectForm, 'projectCity', '');
+    setFormValue(projectForm, 'projectDistrict', '');
     setFormValue(projectForm, 'housingUnits', '');
     setFormValue(projectForm, 'addedAt', today);
     setFormValue(projectForm, 'updatedAt', today);
@@ -1791,6 +1796,7 @@ function openProjectForm(mode, project) {
     setFormValue(projectForm, 'projectName', project.name);
     setFormValue(projectForm, 'projectCategory', project.category);
     setFormValue(projectForm, 'projectCity', project.city);
+    setFormValue(projectForm, 'projectDistrict', project.district);
     setFormValue(projectForm, 'housingUnits', normalizeHousingUnits(project.housingUnits));
     setFormValue(projectForm, 'addedAt', project.addedAt);
     setFormValue(projectForm, 'updatedAt', project.updatedAt);
@@ -1815,6 +1821,7 @@ function renderProjectTable(filterText = '') {
       project.id,
       project.name,
       project.city,
+      project.district,
       project.category,
       project.contractor,
       project.mechanical,
@@ -1850,7 +1857,8 @@ function renderProjectTable(filterText = '') {
           <td>${formatDisplayDate(project.addedAt)}</td>
           <td>${formatDisplayDate(project.updatedAt)}</td>
           <td>${project.category}</td>
-          <td>${project.city}</td>
+          <td>${escapeHtml(project.city || '')}</td>
+          <td>${escapeHtml(project.district || '')}</td>
           <td>${escapeHtml(housingLabel)}</td>
           <td>${project.name}</td>
           <td>${project.contractor}</td>
@@ -1915,6 +1923,33 @@ function findCityCoordinates(city) {
     }
   }
   return null;
+}
+
+function findProjectCoordinates(project) {
+  if (!project) return null;
+  const city = sanitizeText(project.city);
+  const district = sanitizeText(project.district);
+  if (district) {
+    const districtWithCity = [district, city].filter(Boolean).join(' ');
+    const districtCoords = findCityCoordinates(districtWithCity);
+    if (districtCoords) return districtCoords;
+    const directDistrict = findCityCoordinates(district);
+    if (directDistrict) return directDistrict;
+  }
+  if (city) {
+    return findCityCoordinates(city);
+  }
+  return null;
+}
+
+function formatProjectLocation(project) {
+  if (!project) return '';
+  const city = sanitizeText(project.city);
+  const district = sanitizeText(project.district);
+  if (city && district) {
+    return `${district} / ${city}`;
+  }
+  return city || district || '';
 }
 
 function toLatLng(coordinates) {
@@ -2022,7 +2057,7 @@ function renderProjectMap() {
 
   const entries = projectStore
     .map((project, index) => {
-      const coordinates = findCityCoordinates(project.city);
+      const coordinates = findProjectCoordinates(project);
       const position = toLatLng(coordinates);
       if (!position) return null;
       const key = project.id?.trim() || `map-${index}`;
@@ -2039,7 +2074,10 @@ function renderProjectMap() {
     }).addTo(projectMap);
 
     const housingLabel = formatHousingUnits(project.housingUnits);
-    const metaParts = [project.category, project.city].filter(Boolean).map((value) => escapeHtml(value));
+    const locationLabel = formatProjectLocation(project);
+    const metaParts = [locationLabel, project.category]
+      .filter(Boolean)
+      .map((value) => escapeHtml(value));
     const details = [
       `<strong>${escapeHtml(project.name || project.id || 'PROJE')}</strong>`,
       metaParts.length ? `<span>${metaParts.join(' • ')}</span>` : '',
@@ -2077,7 +2115,10 @@ function renderProjectMap() {
       const items = [...entries]
         .sort((a, b) => (a.project.name || '').localeCompare(b.project.name || '', 'tr'))
         .map(({ project, markerKey }) => {
-          const meta = [project.city, project.category].filter(Boolean).map((value) => escapeHtml(value));
+          const locationLabel = formatProjectLocation(project);
+          const meta = [locationLabel, project.category]
+            .filter(Boolean)
+            .map((value) => escapeHtml(value));
           const subtitle = meta.length ? meta.join(' • ') : 'Bilgi bulunmuyor';
           return `
             <li>
@@ -2283,7 +2324,8 @@ function renderProjectDetail(projectId) {
   projectInfo.innerHTML = `
     <dt>Proje Kodu</dt><dd>${project.id}</dd>
     <dt>Kategori</dt><dd>${project.category}</dd>
-    <dt>İl</dt><dd>${project.city}</dd>
+    <dt>İl</dt><dd>${escapeHtml(project.city || '-')}</dd>
+    <dt>İlçe</dt><dd>${escapeHtml(project.district || '-')}</dd>
     <dt>Konut Sayısı</dt><dd>${escapeHtml(housingUnits)}</dd>
     <dt>Eklenme Tarihi</dt><dd>${formatDisplayDate(project.addedAt)}</dd>
     <dt>Son Güncelleme</dt><dd>${formatDisplayDate(project.updatedAt)}</dd>
@@ -2473,6 +2515,7 @@ function applyImportedProjectRows(rows) {
       name: name || id,
       category: normalizeProjectCategory(record.category),
       city: sanitizeText(record.city),
+      district: sanitizeText(record.district),
       housingUnits: normalizeHousingUnits(record.housingUnits),
       addedAt: record.addedAt || today,
       updatedAt: record.updatedAt || record.addedAt || today,
@@ -2497,6 +2540,7 @@ function applyImportedProjectRows(rows) {
       existing.name = payload.name;
       existing.category = payload.category;
       existing.city = payload.city;
+      existing.district = payload.district;
       existing.housingUnits = payload.housingUnits;
       existing.addedAt = payload.addedAt;
       existing.updatedAt = payload.updatedAt;
@@ -2522,6 +2566,7 @@ function applyImportedProjectRows(rows) {
         name: payload.name,
         category: payload.category,
         city: payload.city,
+        district: payload.district,
         housingUnits: payload.housingUnits,
         addedAt: payload.addedAt,
         updatedAt: payload.updatedAt,
@@ -2618,6 +2663,7 @@ function exportProjectsToExcel() {
       'Proje Adı': project.name,
       Kategori: project.category,
       'İl': project.city,
+      'İlçe': project.district,
       'Konut Sayısı': normalizeHousingUnits(project.housingUnits),
       'Eklenme Tarihi': project.addedAt,
       'Son Güncelleme': project.updatedAt,
@@ -2650,6 +2696,7 @@ function exportProjectsToExcel() {
         return { wch: 32 };
       case 'Kategori':
       case 'İl':
+      case 'İlçe':
         return { wch: 18 };
       case 'Eklenme Tarihi':
       case 'Son Güncelleme':
@@ -3121,7 +3168,7 @@ function buildFirmProfile(firm, type, relatedProjects) {
           (project) => `
             <li>
               <span>${escapeHtml(project.id)}</span>
-              <span>${escapeHtml(project.name)} • ${escapeHtml(project.city || '-')} (${escapeHtml(project.category || '-')}) • ${escapeHtml(project.salesStatus || '-')}</span>
+              <span>${escapeHtml(project.name)} • ${escapeHtml(formatProjectLocation(project) || '-')} (${escapeHtml(project.category || '-')}) • ${escapeHtml(project.salesStatus || '-')}</span>
             </li>
           `,
         )
@@ -3361,6 +3408,7 @@ function setupForms() {
       name: formData.get('projectName')?.trim() ?? '',
       category: formData.get('projectCategory') ?? '',
       city: formData.get('projectCity')?.trim() ?? '',
+      district: formData.get('projectDistrict')?.trim() ?? '',
       housingUnits: normalizeHousingUnits(formData.get('housingUnits')),
       addedAt: formData.get('addedAt') || '',
       updatedAt: formData.get('updatedAt') || '',
@@ -3397,6 +3445,7 @@ function setupForms() {
       project.name = payload.name;
       project.category = payload.category;
       project.city = payload.city;
+      project.district = payload.district;
       project.housingUnits = payload.housingUnits;
       project.addedAt = payload.addedAt;
       project.updatedAt = payload.updatedAt;
@@ -3423,6 +3472,7 @@ function setupForms() {
         updatedAt: payload.updatedAt,
         category: payload.category,
         city: payload.city,
+        district: payload.district,
         housingUnits: payload.housingUnits,
         name: payload.name,
         contractor: payload.contractor,
