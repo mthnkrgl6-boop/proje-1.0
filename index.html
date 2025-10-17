@@ -645,6 +645,26 @@
           <p class="muted">Kayıtlı projelerin konumlarını harita üzerinde görüntüleyin.</p>
         </div>
       </header>
+      <div class="map-controls">
+        <form class="map-key-form" id="mapKeyForm">
+          <label>
+            <span>Google Maps API Anahtarı</span>
+            <input
+              type="text"
+              id="mapKeyInput"
+              name="googleMapsKey"
+              placeholder="AIza..."
+              autocomplete="off"
+              data-no-uppercase="true"
+            />
+          </label>
+          <div class="map-key-actions">
+            <button type="submit" class="primary-btn">Anahtarı Kaydet</button>
+            <button type="button" class="ghost-btn" id="clearMapKeyBtn">Anahtarı Kaldır</button>
+          </div>
+          <p class="form-feedback" data-role="feedback" id="mapKeyFeedback"></p>
+        </form>
+      </div>
       <div class="map-layout">
         <div class="map-wrapper">
           <div

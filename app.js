@@ -18,6 +18,9 @@ const assignmentTableBody = document.getElementById('assignmentTableBody');
 const requestGrid = document.getElementById('requestGrid');
 const mapContainer = document.getElementById('projectMap');
 const mapProjectList = document.getElementById('mapProjectList');
+const mapKeyForm = document.getElementById('mapKeyForm');
+const mapKeyInput = document.getElementById('mapKeyInput');
+const clearMapKeyBtn = document.getElementById('clearMapKeyBtn');
 const reportSummaryCards = document.getElementById('reportSummaryCards');
 const reportCategoryList = document.getElementById('reportCategoryList');
 const reportChannelList = document.getElementById('reportChannelList');
@@ -231,6 +234,70 @@ const projectMarkers = new Map();
 let googleMapsLoadPromise = null;
 let googleMapsLoadInFlight = false;
 let activeMapInfoWindow = null;
+let googleMapsApiKey = mapContainer?.dataset?.googleMapsKey
+  ? mapContainer.dataset.googleMapsKey.trim()
+  : '';
+
+function syncGoogleMapsKeyUI() {
+  const key = googleMapsApiKey || '';
+  if (mapContainer) {
+    if (key) {
+      mapContainer.dataset.googleMapsKey = key;
+    } else {
+      delete mapContainer.dataset.googleMapsKey;
+    }
+  }
+  if (mapKeyInput) {
+    mapKeyInput.value = key;
+  }
+  if (typeof document !== 'undefined') {
+    if (document.body) {
+      if (key) {
+        document.body.dataset.googleMapsKey = key;
+      } else if (document.body.dataset) {
+        delete document.body.dataset.googleMapsKey;
+      }
+    }
+    if (document.documentElement) {
+      if (key) {
+        document.documentElement.dataset.googleMapsKey = key;
+      } else if (document.documentElement.dataset) {
+        delete document.documentElement.dataset.googleMapsKey;
+      }
+    }
+  }
+}
+
+function resetGoogleMapsLoader() {
+  googleMapsLoadPromise = null;
+  googleMapsLoadInFlight = false;
+}
+
+function setGoogleMapsApiKey(key, { persist = false, reinitialize = false } = {}) {
+  const normalized = typeof key === 'string' ? key.trim() : '';
+  const hasChanged = normalized !== googleMapsApiKey;
+  googleMapsApiKey = normalized;
+  syncGoogleMapsKeyUI();
+
+  if (hasChanged || reinitialize) {
+    resetGoogleMapsLoader();
+  }
+
+  if (persist && hasChanged) {
+    schedulePersistState();
+  }
+
+  if (reinitialize) {
+    destroyProjectMap();
+    if (normalized) {
+      renderProjectMap();
+    } else {
+      showMapError('Google Maps API anahtarı tanımlanmadı. Lütfen geçerli bir anahtar ekleyin.');
+    }
+  }
+
+  return normalized;
+}
 
 let selectedProjectId = projectStore[0]?.id ?? null;
 let editingProductId = null;
@@ -321,6 +388,9 @@ function getAppStateSnapshot() {
     requests: requestStore.map(cloneRequest).filter(Boolean),
     selectedProjectId,
     currentUserId: currentUser?.id ?? null,
+    mapSettings: {
+      googleMapsKey: googleMapsApiKey,
+    },
   };
 }
 
@@ -401,6 +471,14 @@ function loadPersistedState() {
       const requests = data.requests.map(normalizeRequestRecord).filter(Boolean);
       requestStore.splice(0, requestStore.length, ...requests);
     }
+
+    const storedKey =
+      typeof data?.mapSettings?.googleMapsKey === 'string'
+        ? data.mapSettings.googleMapsKey
+        : typeof data?.googleMapsKey === 'string'
+          ? data.googleMapsKey
+          : '';
+    setGoogleMapsApiKey(storedKey, { persist: false, reinitialize: false });
 
     if (data.currentUserId) {
       currentUser = userStore.find((user) => user.id === data.currentUserId) ?? null;
@@ -1923,6 +2001,7 @@ function getGoogleMapsApiKey() {
     return '';
   }
   const candidates = [
+    googleMapsApiKey,
     typeof window !== 'undefined' ? window.GOOGLE_MAPS_API_KEY : '',
     mapContainer?.dataset?.googleMapsKey,
     document.body?.dataset?.googleMapsKey,
@@ -2002,7 +2081,7 @@ function showMapError(message) {
   mapContainer.innerHTML = `<p class="muted">${escapeHtml(composed)}</p>`;
   mapContainer.dataset.error = 'true';
   if (mapProjectList) {
-    mapProjectList.innerHTML = `<li class="muted">${escapeHtml(fallback)}</li>`;
+    mapProjectList.innerHTML = `<li class="muted">${escapeHtml(composed)}</li>`;
   }
 }
 
@@ -2010,6 +2089,29 @@ function clearMapError() {
   if (mapContainer?.dataset?.error) {
     mapContainer.innerHTML = '';
     delete mapContainer.dataset.error;
+  }
+}
+
+function destroyProjectMap() {
+  activeMapInfoWindow?.close();
+  activeMapInfoWindow = null;
+  projectMarkers.forEach(({ marker, infoWindow }) => {
+    if (marker?.setMap) {
+      marker.setMap(null);
+    }
+    infoWindow?.close();
+  });
+  projectMarkers.clear();
+  if (window.google?.maps?.event && projectMap) {
+    window.google.maps.event.clearInstanceListeners(projectMap);
+  }
+  projectMap = null;
+  if (mapContainer) {
+    mapContainer.innerHTML = '';
+    delete mapContainer.dataset.error;
+  }
+  if (mapProjectList) {
+    mapProjectList.innerHTML = '';
   }
 }
 
@@ -3828,6 +3930,40 @@ function setupNavigation() {
 }
 
 function setupMapSection() {
+  syncGoogleMapsKeyUI();
+
+  mapKeyForm?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const key = mapKeyInput?.value?.trim() ?? '';
+    if (!key) {
+      showFormFeedback(mapKeyForm, 'Lütfen geçerli bir Google Maps API anahtarı girin.');
+      return;
+    }
+    if (key === googleMapsApiKey) {
+      showFormFeedback(mapKeyForm, 'Girdiğiniz anahtar zaten kayıtlı.');
+      return;
+    }
+    setGoogleMapsApiKey(key, { persist: true, reinitialize: true });
+    showFormFeedback(mapKeyForm, 'Google Maps anahtarı kaydedildi.');
+  });
+
+  clearMapKeyBtn?.addEventListener('click', (event) => {
+    event.preventDefault();
+    if (!googleMapsApiKey) {
+      if (mapKeyForm) {
+        showFormFeedback(mapKeyForm, 'Kayıtlı bir anahtar bulunamadı.');
+      }
+      return;
+    }
+    if (!window.confirm('Kayıtlı Google Maps anahtarını kaldırmak istediğinize emin misiniz?')) {
+      return;
+    }
+    setGoogleMapsApiKey('', { persist: true, reinitialize: true });
+    if (mapKeyForm) {
+      showFormFeedback(mapKeyForm, 'Google Maps anahtarı kaldırıldı.');
+    }
+  });
+
   mapProjectList?.addEventListener('click', (event) => {
     const button = event.target instanceof HTMLElement ? event.target.closest('button[data-project-id]') : null;
     if (!button) return;
@@ -4191,6 +4327,9 @@ function closeUserModal() {
 }
 
 function shouldUppercaseInput(element) {
+  if (element?.dataset?.noUppercase === 'true') {
+    return false;
+  }
   if (element instanceof HTMLTextAreaElement) {
     return true;
   }
