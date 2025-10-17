@@ -16,6 +16,12 @@ const constructionTableBody = document.getElementById('constructionTableBody');
 const mechanicalTableBody = document.getElementById('mechanicalTableBody');
 const assignmentTableBody = document.getElementById('assignmentTableBody');
 const requestGrid = document.getElementById('requestGrid');
+const mapContainer = document.getElementById('projectMap');
+const mapProjectList = document.getElementById('mapProjectList');
+const reportSummaryCards = document.getElementById('reportSummaryCards');
+const reportCategoryList = document.getElementById('reportCategoryList');
+const reportChannelList = document.getElementById('reportChannelList');
+const reportCityList = document.getElementById('reportCityList');
 const projectInfo = document.getElementById('projectInfo');
 const productTableBody = document.getElementById('productTableBody');
 const offerTotal = document.getElementById('offerTotal');
@@ -131,6 +137,99 @@ const firmConfig = {
 
 const requestStore = [];
 
+const numberFormatter = new Intl.NumberFormat('tr-TR');
+
+const MAP_DEFAULT_CENTER = [39.0, 35.0];
+const MAP_DEFAULT_ZOOM = 5.5;
+
+const TURKEY_CITY_COORDINATES = {
+  ADANA: [37.0007, 35.3213],
+  ADIYAMAN: [37.7648, 38.2786],
+  AFYONKARAHİSAR: [38.7569, 30.5387],
+  AĞRI: [39.7191, 43.0503],
+  AKSARAY: [38.3687, 34.037],
+  AMASYA: [40.65, 35.8333],
+  ANKARA: [39.9208, 32.8541],
+  ANTALYA: [36.8969, 30.7133],
+  ARDAHAN: [41.1105, 42.7022],
+  ARTVİN: [41.1828, 41.8183],
+  AYDIN: [37.845, 27.845],
+  BALIKESİR: [39.6484, 27.8826],
+  BARTIN: [41.6358, 32.3375],
+  BATMAN: [37.8812, 41.1351],
+  BAYBURT: [40.2552, 40.2249],
+  BİLECİK: [40.0567, 30.0665],
+  BİNGÖL: [38.885, 40.4983],
+  BİTLİS: [38.4015, 42.1078],
+  BOLU: [40.732, 31.6116],
+  BURDUR: [37.7203, 30.2903],
+  BURSA: [40.195, 29.06],
+  ÇANAKKALE: [40.1467, 26.4064],
+  ÇANKIRI: [40.6013, 33.6134],
+  ÇORUM: [40.5506, 34.9556],
+  DENİZLİ: [37.7765, 29.0864],
+  DİYARBAKIR: [37.9086, 40.2362],
+  DÜZCE: [40.8438, 31.1565],
+  EDİRNE: [41.6764, 26.555],
+  ELAZIĞ: [38.6753, 39.222],
+  ERZİNCAN: [39.7505, 39.4928],
+  ERZURUM: [39.9043, 41.2679],
+  ESKİŞEHİR: [39.7767, 30.5206],
+  GAZİANTEP: [37.0662, 37.3833],
+  GİRESUN: [40.9128, 38.3895],
+  GÜMÜŞHANE: [40.4603, 39.4818],
+  HAKKARİ: [37.5744, 43.7408],
+  HATAY: [36.2028, 36.1609],
+  IĞDIR: [39.9237, 44.045],
+  ISPARTA: [37.7648, 30.5567],
+  İSTANBUL: [41.0082, 28.9784],
+  İZMİR: [38.4237, 27.1428],
+  KAHRAMANMARAŞ: [37.581, 36.9371],
+  KARABÜK: [41.2061, 32.6204],
+  KARAMAN: [37.1759, 33.2287],
+  KARS: [40.6013, 43.0949],
+  KASTAMONU: [41.3887, 33.7827],
+  KAYSERİ: [38.7312, 35.4787],
+  KIRIKKALE: [39.8468, 33.5153],
+  KIRKLARELİ: [41.7333, 27.2167],
+  KIRŞEHİR: [39.1458, 34.163],
+  KİLİS: [36.7184, 37.1212],
+  KOCAELİ: [40.8533, 29.8815],
+  KONYA: [37.8715, 32.4846],
+  KÜTAHYA: [39.4242, 29.9833],
+  MALATYA: [38.3552, 38.3333],
+  MANİSA: [38.6191, 27.4289],
+  MARDİN: [37.3129, 40.7339],
+  MERSİN: [36.8121, 34.6415],
+  MUĞLA: [37.2153, 28.3636],
+  MUŞ: [38.7433, 41.5065],
+  NEVŞEHİR: [38.6244, 34.7239],
+  NİĞDE: [37.9699, 34.6766],
+  ORDU: [40.9862, 37.8797],
+  OSMANİYE: [37.068, 36.261],
+  RİZE: [41.0201, 40.5234],
+  SAKARYA: [40.7569, 30.3781],
+  SAMSUN: [41.2867, 36.33],
+  SİİRT: [37.9333, 41.95],
+  SİNOP: [42.0264, 35.1552],
+  SİVAS: [39.7477, 37.0179],
+  ŞANLIURFA: [37.1674, 38.7955],
+  ŞIRNAK: [37.522, 42.4543],
+  TEKİRDAĞ: [40.978, 27.511],
+  TOKAT: [40.3167, 36.55],
+  TRABZON: [41.0015, 39.7178],
+  TUNCELİ: [39.1069, 39.548],
+  UŞAK: [38.6823, 29.4082],
+  VAN: [38.5012, 43.4089],
+  YALOVA: [40.655, 29.2769],
+  YOZGAT: [39.8206, 34.804],
+  ZONGULDAK: [41.4564, 31.7987],
+};
+
+let projectMap = null;
+let projectMapLayerGroup = null;
+const projectMarkers = new Map();
+
 let selectedProjectId = projectStore[0]?.id ?? null;
 let editingProductId = null;
 let editingTimelineId = null;
@@ -139,6 +238,8 @@ const logEditState = { visit: null, offer: null, payment: null };
 let projectFormMode = null;
 const defaultSubmitLabels = new Map();
 const logForms = {};
+
+let currentView = 'project-pool';
 
 const STORAGE_KEY = 'kalde-panel-state';
 let persistStateTimer = null;
@@ -1427,6 +1528,15 @@ function formatHousingUnits(value) {
   return normalized;
 }
 
+function getHousingUnitTotal(value) {
+  const normalized = normalizeHousingUnits(value);
+  if (!normalized) return 0;
+  const digits = normalized.match(/\d+/g);
+  if (!digits) return 0;
+  const numeric = Number(digits.join(''));
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
 function getProject(projectId) {
   if (!projectId) return undefined;
   return projectStore.find((item) => item.id === projectId);
@@ -1768,8 +1878,286 @@ function renderProjectTable(filterText = '') {
   counts['Özel'].textContent = totals['Özel'];
   counts['Kamu'].textContent = totals['Kamu'];
 
+  renderProjectReports();
+  renderProjectMap();
+
   if (normalizedDuringRender) {
     schedulePersistState();
+  }
+}
+
+function normalizeCityKey(city) {
+  if (city === undefined || city === null) return '';
+  const text = String(city).replace(/[()]/g, ' ');
+  const upper = text.toLocaleUpperCase('tr-TR');
+  return upper.replace(/\s+/g, ' ').trim().replace(/\s+(İLİ|MERKEZ)$/u, '');
+}
+
+function findCityCoordinates(city) {
+  const key = normalizeCityKey(city);
+  if (!key) return null;
+  if (TURKEY_CITY_COORDINATES[key]) {
+    return TURKEY_CITY_COORDINATES[key];
+  }
+  const pieces = key
+    .split(/[\\/,-]/u)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  for (const part of pieces) {
+    if (TURKEY_CITY_COORDINATES[part]) {
+      return TURKEY_CITY_COORDINATES[part];
+    }
+  }
+  for (const [name, coords] of Object.entries(TURKEY_CITY_COORDINATES)) {
+    if (key.includes(name)) {
+      return coords;
+    }
+  }
+  return null;
+}
+
+function renderProjectMap() {
+  if (!mapContainer) return;
+
+  if (typeof L === 'undefined') {
+    if (!mapContainer.dataset?.error) {
+      mapContainer.innerHTML = '<p class="muted">Harita bileşeni yüklenemedi.</p>';
+      mapContainer.dataset.error = 'true';
+    }
+    if (mapProjectList) {
+      mapProjectList.innerHTML = '<li class="muted">Harita bileşeni yüklenemedi.</li>';
+    }
+    return;
+  }
+
+  if (!projectMap) {
+    projectMap = L.map(mapContainer, { zoomControl: true, attributionControl: false }).setView(
+      MAP_DEFAULT_CENTER,
+      MAP_DEFAULT_ZOOM,
+    );
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap katkıcıları',
+    }).addTo(projectMap);
+    projectMapLayerGroup = L.layerGroup().addTo(projectMap);
+  }
+
+  if (!projectMapLayerGroup) return;
+
+  projectMarkers.clear();
+  projectMapLayerGroup.clearLayers();
+
+  const entries = projectStore
+    .map((project, index) => {
+      const coordinates = findCityCoordinates(project.city);
+      if (!coordinates) return null;
+      const key = project.id?.trim() || `map-${index}`;
+      return { project, coordinates, markerKey: key };
+    })
+    .filter(Boolean);
+
+  const markers = [];
+
+  entries.forEach(({ project, coordinates, markerKey }) => {
+    const marker = L.marker(coordinates);
+    const housingLabel = formatHousingUnits(project.housingUnits);
+    const metaParts = [project.category, project.city].filter(Boolean).map((value) => escapeHtml(value));
+    const details = [
+      `<strong>${escapeHtml(project.name || project.id || 'PROJE')}</strong>`,
+      metaParts.length ? `<span>${metaParts.join(' • ')}</span>` : '',
+      project.id ? `<span>Kod: ${escapeHtml(project.id)}</span>` : '',
+      `<span>Konut: ${escapeHtml(housingLabel)}</span>`,
+      project.contractor ? `<span>Yüklenici: ${escapeHtml(project.contractor)}</span>` : '',
+      project.mechanical ? `<span>Mekanik: ${escapeHtml(project.mechanical)}</span>` : '',
+    ].filter(Boolean);
+    marker.bindPopup(`<div class="map-popup">${details.join('<br />')}</div>`);
+    marker.addTo(projectMapLayerGroup);
+    projectMarkers.set(markerKey, marker);
+    markers.push(marker);
+  });
+
+  if (markers.length) {
+    const group = L.featureGroup(markers);
+    const bounds = group.getBounds();
+    if (bounds.isValid()) {
+      projectMap.fitBounds(bounds, { padding: [24, 24], maxZoom: 11 });
+    }
+  } else {
+    projectMap.setView(MAP_DEFAULT_CENTER, MAP_DEFAULT_ZOOM);
+  }
+
+  if (mapProjectList) {
+    if (!entries.length) {
+      mapProjectList.innerHTML = '<li class="muted">Konumu belirlenen proje bulunmuyor.</li>';
+    } else {
+      const items = [...entries]
+        .sort((a, b) => (a.project.name || '').localeCompare(b.project.name || '', 'tr'))
+        .map(({ project, markerKey }) => {
+          const meta = [project.city, project.category].filter(Boolean).map((value) => escapeHtml(value));
+          const subtitle = meta.length ? meta.join(' • ') : 'Bilgi bulunmuyor';
+          return `
+            <li>
+              <button type="button" data-project-id="${escapeHtml(markerKey)}">
+                <span class="map-project__name">${escapeHtml(project.name || project.id || 'PROJE')}</span>
+                <span class="map-project__meta">${subtitle}</span>
+              </button>
+            </li>
+          `;
+        })
+        .join('');
+      mapProjectList.innerHTML = items;
+    }
+  }
+
+  if (currentView === 'project-maps') {
+    window.requestAnimationFrame(() => {
+      projectMap?.invalidateSize();
+    });
+  }
+}
+
+function renderProjectReports() {
+  if (!reportSummaryCards && !reportCategoryList && !reportChannelList && !reportCityList) {
+    return;
+  }
+
+  const totalProjects = projectStore.length;
+  const totalHousingUnits = projectStore.reduce(
+    (sum, project) => sum + getHousingUnitTotal(project.housingUnits),
+    0,
+  );
+  const averageHousing = totalProjects ? Math.round(totalHousingUnits / totalProjects) : 0;
+
+  if (reportSummaryCards) {
+    const summaryCards = [
+      {
+        title: 'Toplam Proje',
+        metric: numberFormatter.format(totalProjects),
+        hint: 'Aktif kayıt sayısı',
+      },
+      {
+        title: 'Toplam Konut',
+        metric: numberFormatter.format(totalHousingUnits),
+        hint: 'Projelerdeki toplam konut adedi',
+      },
+      {
+        title: 'Ortalama Konut',
+        metric: totalProjects ? numberFormatter.format(averageHousing) : '-',
+        hint: 'Proje başına ortalama konut',
+      },
+    ];
+
+    reportSummaryCards.innerHTML = summaryCards
+      .map(
+        (card) => `
+          <article class="report-card">
+            <h3>${card.title}</h3>
+            <p class="report-card__metric">${card.metric}</p>
+            <p class="muted">${card.hint}</p>
+          </article>
+        `,
+      )
+      .join('');
+  }
+
+  if (reportCategoryList) {
+    const categoryOrder = ['TOKİ', 'Emlak Konut', 'Özel', 'Kamu'];
+    const categoryTotals = categoryOrder.reduce((acc, category) => {
+      acc[category] = 0;
+      return acc;
+    }, {});
+
+    projectStore.forEach((project) => {
+      const category = normalizeProjectCategory(project.category);
+      if (!(category in categoryTotals)) {
+        categoryTotals[category] = 0;
+      }
+      categoryTotals[category] += 1;
+    });
+
+    const orderedEntries = [
+      ...categoryOrder.map((category) => [category, categoryTotals[category] ?? 0]),
+      ...Object.keys(categoryTotals)
+        .filter((category) => !categoryOrder.includes(category))
+        .map((category) => [category, categoryTotals[category]]),
+    ];
+
+    reportCategoryList.innerHTML = orderedEntries
+      .map(([category, count]) => {
+        const share = totalProjects ? Math.round((count / totalProjects) * 100) : 0;
+        return `
+          <li>
+            <span class="report-list__label">${escapeHtml(category)}</span>
+            <span class="report-list__value">${numberFormatter.format(count)} proje • %${share}</span>
+          </li>
+        `;
+      })
+      .join('');
+  }
+
+  if (reportChannelList) {
+    const channelMetrics = {
+      direct: { count: 0, housing: 0 },
+      dealer: { count: 0, housing: 0 },
+    };
+
+    projectStore.forEach((project) => {
+      const key = project.channel === 'dealer' ? 'dealer' : 'direct';
+      channelMetrics[key].count += 1;
+      channelMetrics[key].housing += getHousingUnitTotal(project.housingUnits);
+    });
+
+    const channelItems = [
+      { key: 'direct', label: 'Doğrudan' },
+      { key: 'dealer', label: 'Bayi / Kanal' },
+    ]
+      .map(({ key, label }) => {
+        const data = channelMetrics[key];
+        return `
+          <li>
+            <span class="report-list__label">${label}</span>
+            <span class="report-list__value">${numberFormatter.format(data.count)} proje • ${numberFormatter.format(data.housing)} konut</span>
+          </li>
+        `;
+      })
+      .join('');
+
+    reportChannelList.innerHTML = channelItems;
+  }
+
+  if (reportCityList) {
+    const cityMetrics = new Map();
+    projectStore.forEach((project) => {
+      const city = sanitizeText(project.city);
+      if (!city) return;
+      if (!cityMetrics.has(city)) {
+        cityMetrics.set(city, { count: 0, housing: 0 });
+      }
+      const entry = cityMetrics.get(city);
+      entry.count += 1;
+      entry.housing += getHousingUnitTotal(project.housingUnits);
+    });
+
+    const topCities = Array.from(cityMetrics.entries())
+      .map(([city, stats]) => ({ city, ...stats }))
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return b.housing - a.housing;
+      })
+      .slice(0, 5);
+
+    reportCityList.innerHTML = topCities.length
+      ? topCities
+          .map(
+            ({ city, count, housing }) => `
+              <li>
+                <span class="report-list__label">${escapeHtml(city)}</span>
+                <span class="report-list__value">${numberFormatter.format(count)} proje • ${numberFormatter.format(housing)} konut</span>
+              </li>
+            `,
+          )
+          .join('')
+      : '<li class="muted">İl bilgisi bulunan proje yok.</li>';
   }
 }
 
@@ -2529,6 +2917,9 @@ function renderLogList(target, items, type, templateFn) {
 }
 
 function activateView(target) {
+  if (!target) return;
+  currentView = target;
+
   navLinks.forEach((link) => {
     const isActive = link.dataset.target === target;
     link.classList.toggle('active', isActive);
@@ -2537,6 +2928,12 @@ function activateView(target) {
   dashboards.forEach((section) => {
     section.classList.toggle('hidden', section.dataset.view !== target);
   });
+
+  if (target === 'project-maps') {
+    renderProjectMap();
+  } else if (target === 'reporting') {
+    renderProjectReports();
+  }
 }
 
 function openFirmCreationForm(type) {
@@ -3296,6 +3693,26 @@ function setupNavigation() {
   });
 }
 
+function setupMapSection() {
+  mapProjectList?.addEventListener('click', (event) => {
+    const button = event.target instanceof HTMLElement ? event.target.closest('button[data-project-id]') : null;
+    if (!button) return;
+    const markerKey = button.dataset.projectId;
+    if (!markerKey) return;
+    if (typeof L === 'undefined') return;
+    if (!projectMap) {
+      renderProjectMap();
+    }
+    const marker = projectMarkers.get(markerKey);
+    if (!marker || !projectMap) return;
+    const position = marker.getLatLng();
+    if (!position) return;
+    const targetZoom = Math.max(projectMap.getZoom(), 7);
+    projectMap.setView(position, targetZoom, { animate: true });
+    marker.openPopup();
+  });
+}
+
 function setupProjectSelection() {
   projectTableBody.addEventListener('click', (event) => {
     const row = event.target.closest('tr[data-project-id]');
@@ -3874,6 +4291,7 @@ function init() {
   renderAssignments();
   renderRequests();
   setupNavigation();
+  setupMapSection();
   setupProjectSelection();
   setupFirmSelection();
   setupFirmProfileForms();
