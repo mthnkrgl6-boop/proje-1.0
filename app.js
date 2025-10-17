@@ -800,6 +800,11 @@ function sanitizeText(value) {
   return String(value).trim();
 }
 
+function normalizeSearchQuery(value) {
+  if (value === undefined || value === null) return '';
+  return String(value).toLocaleLowerCase('tr-TR').trim();
+}
+
 function normalizeCoordinates(value) {
   if (!value || typeof value !== 'object') return null;
   const lat = Number(value.lat ?? value.latitude ?? value.y);
@@ -1889,11 +1894,35 @@ function openProjectForm(mode, project) {
   }
 }
 
-function renderProjectTable(filterText = '') {
-  const query = filterText.toLocaleLowerCase('tr-TR');
+function getActiveProjectFilters() {
+  return {
+    project: projectSearch?.value ?? '',
+    construction: constructionSearch?.value ?? '',
+    mechanical: mechanicalSearch?.value ?? '',
+  };
+}
+
+function renderProjectTable(filterInput) {
+  const activeFilters = getActiveProjectFilters();
+  let requestedFilters;
+
+  if (typeof filterInput === 'string') {
+    requestedFilters = { ...activeFilters, project: filterInput };
+  } else if (filterInput && typeof filterInput === 'object') {
+    requestedFilters = { ...activeFilters, ...filterInput };
+  } else {
+    requestedFilters = activeFilters;
+  }
+
+  const queries = {
+    project: normalizeSearchQuery(requestedFilters.project),
+    construction: normalizeSearchQuery(requestedFilters.construction),
+    mechanical: normalizeSearchQuery(requestedFilters.mechanical),
+  };
+
   const filteredProjects = projectStore.filter((project) => {
     const housingText = normalizeHousingUnits(project.housingUnits);
-    const text = [
+    const generalText = [
       project.id,
       project.name,
       project.city,
@@ -1910,7 +1939,26 @@ function renderProjectTable(filterText = '') {
       .filter(Boolean)
       .join(' ')
       .toLocaleLowerCase('tr-TR');
-    return text.includes(query);
+
+    if (queries.project && !generalText.includes(queries.project)) {
+      return false;
+    }
+
+    if (queries.construction) {
+      const contractorText = normalizeSearchQuery(project.contractor);
+      if (!contractorText || !contractorText.includes(queries.construction)) {
+        return false;
+      }
+    }
+
+    if (queries.mechanical) {
+      const mechanicalText = normalizeSearchQuery(project.mechanical);
+      if (!mechanicalText || !mechanicalText.includes(queries.mechanical)) {
+        return false;
+      }
+    }
+
+    return true;
   });
 
   let normalizedDuringRender = false;
@@ -4221,15 +4269,19 @@ function setupFirmProfileForms() {
 }
 
 function setupSearch() {
-  projectSearch?.addEventListener('input', (event) => {
-    renderProjectTable(event.target.value);
-  });
+  const refreshProjectFilters = () => {
+    renderProjectTable();
+  };
+
+  projectSearch?.addEventListener('input', refreshProjectFilters);
 
   constructionSearch?.addEventListener('input', (event) => {
+    refreshProjectFilters();
     renderFirmTable(constructionTableBody, constructionFirms, event.target.value);
   });
 
   mechanicalSearch?.addEventListener('input', (event) => {
+    refreshProjectFilters();
     renderFirmTable(mechanicalTableBody, mechanicalFirms, event.target.value);
   });
 }
