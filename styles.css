@@ -1734,6 +1734,11 @@ form .full-width {
     width: 100%;
   }
 
+  .map-key-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   table,
   .mini-table {
     display: block;
