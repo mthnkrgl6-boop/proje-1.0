@@ -139,8 +139,8 @@ const requestStore = [];
 
 const numberFormatter = new Intl.NumberFormat('tr-TR');
 
-const MAP_DEFAULT_CENTER = [39.0, 35.0];
-const MAP_DEFAULT_ZOOM = 5.5;
+const MAP_DEFAULT_CENTER = { lat: 39.0, lng: 35.0 };
+const MAP_DEFAULT_ZOOM = 6;
 
 const TURKEY_CITY_COORDINATES = {
   ADANA: [37.0007, 35.3213],
@@ -227,8 +227,10 @@ const TURKEY_CITY_COORDINATES = {
 };
 
 let projectMap = null;
-let projectMapLayerGroup = null;
 const projectMarkers = new Map();
+let googleMapsLoadPromise = null;
+let googleMapsLoadInFlight = false;
+let activeMapInfoWindow = null;
 
 let selectedProjectId = projectStore[0]?.id ?? null;
 let editingProductId = null;
@@ -1916,50 +1918,166 @@ function findCityCoordinates(city) {
   return null;
 }
 
+function getGoogleMapsApiKey() {
+  if (typeof document === 'undefined') {
+    return '';
+  }
+  const candidates = [
+    typeof window !== 'undefined' ? window.GOOGLE_MAPS_API_KEY : '',
+    mapContainer?.dataset?.googleMapsKey,
+    document.body?.dataset?.googleMapsKey,
+    document.documentElement?.dataset?.googleMapsKey,
+    document.querySelector('meta[name="google-maps-key"]')?.getAttribute('content'),
+  ];
+  for (const candidate of candidates) {
+    if (candidate && candidate !== 'YOUR_GOOGLE_MAPS_API_KEY') {
+      return candidate;
+    }
+  }
+  return '';
+}
+
+function loadGoogleMaps() {
+  if (typeof window === 'undefined') {
+    return Promise.reject(new Error('Google Maps yalnızca tarayıcı ortamında kullanılabilir.'));
+  }
+
+  if (window.google?.maps?.Map) {
+    return Promise.resolve(window.google.maps);
+  }
+
+  const loaderNamespace = window.google?.maps?.plugins?.loader;
+  if (!loaderNamespace || !loaderNamespace.Loader) {
+    return Promise.reject(new Error('Google Maps yükleyicisi bulunamadı.'));
+  }
+
+  if (!googleMapsLoadPromise) {
+    const apiKey = getGoogleMapsApiKey();
+    if (!apiKey) {
+      return Promise.reject(
+        new Error('Google Maps API anahtarı tanımlanmadı. Lütfen geçerli bir anahtar ekleyin.'),
+      );
+    }
+
+    const loader = new loaderNamespace.Loader({
+      apiKey,
+      version: 'weekly',
+      language: 'tr',
+      region: 'TR',
+    });
+
+    googleMapsLoadPromise = loader
+      .load()
+      .catch((error) => {
+        googleMapsLoadPromise = null;
+        throw error;
+      });
+  }
+
+  return googleMapsLoadPromise;
+}
+
+function toLatLng(coordinates) {
+  if (!coordinates) return null;
+  if (Array.isArray(coordinates)) {
+    const [lat, lng] = coordinates;
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return { lat, lng };
+    }
+    return null;
+  }
+  if (typeof coordinates === 'object' && coordinates !== null) {
+    const { lat, lng } = coordinates;
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return { lat, lng };
+    }
+  }
+  return null;
+}
+
+function showMapError(message) {
+  if (!mapContainer) return;
+  const fallback = 'Harita bileşeni yüklenemedi.';
+  const composed = message ? `${fallback} (${message})` : fallback;
+  mapContainer.innerHTML = `<p class="muted">${escapeHtml(composed)}</p>`;
+  mapContainer.dataset.error = 'true';
+  if (mapProjectList) {
+    mapProjectList.innerHTML = `<li class="muted">${escapeHtml(fallback)}</li>`;
+  }
+}
+
+function clearMapError() {
+  if (mapContainer?.dataset?.error) {
+    mapContainer.innerHTML = '';
+    delete mapContainer.dataset.error;
+  }
+}
+
 function renderProjectMap() {
   if (!mapContainer) return;
 
-  if (typeof L === 'undefined') {
-    if (!mapContainer.dataset?.error) {
-      mapContainer.innerHTML = '<p class="muted">Harita bileşeni yüklenemedi.</p>';
-      mapContainer.dataset.error = 'true';
-    }
-    if (mapProjectList) {
-      mapProjectList.innerHTML = '<li class="muted">Harita bileşeni yüklenemedi.</li>';
+  if (!window.google?.maps?.Map) {
+    if (!googleMapsLoadInFlight) {
+      googleMapsLoadInFlight = true;
+      if (!mapContainer.dataset?.error) {
+        mapContainer.innerHTML = '<p class="muted">Harita yükleniyor...</p>';
+      }
+      loadGoogleMaps()
+        .then(() => {
+          googleMapsLoadInFlight = false;
+          clearMapError();
+          renderProjectMap();
+        })
+        .catch((error) => {
+          googleMapsLoadInFlight = false;
+          showMapError(error?.message);
+        });
     }
     return;
   }
 
+  clearMapError();
+
   if (!projectMap) {
-    projectMap = L.map(mapContainer, { zoomControl: true, attributionControl: false }).setView(
-      MAP_DEFAULT_CENTER,
-      MAP_DEFAULT_ZOOM,
-    );
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap katkıcıları',
-    }).addTo(projectMap);
-    projectMapLayerGroup = L.layerGroup().addTo(projectMap);
+    projectMap = new window.google.maps.Map(mapContainer, {
+      center: MAP_DEFAULT_CENTER,
+      zoom: MAP_DEFAULT_ZOOM,
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: true,
+      gestureHandling: 'greedy',
+    });
   }
 
-  if (!projectMapLayerGroup) return;
+  activeMapInfoWindow?.close();
+  activeMapInfoWindow = null;
 
+  projectMarkers.forEach(({ marker, infoWindow }) => {
+    marker.setMap(null);
+    infoWindow?.close();
+  });
   projectMarkers.clear();
-  projectMapLayerGroup.clearLayers();
 
   const entries = projectStore
     .map((project, index) => {
       const coordinates = findCityCoordinates(project.city);
-      if (!coordinates) return null;
+      const position = toLatLng(coordinates);
+      if (!position) return null;
       const key = project.id?.trim() || `map-${index}`;
-      return { project, coordinates, markerKey: key };
+      return { project, position, markerKey: key };
     })
     .filter(Boolean);
 
-  const markers = [];
+  const bounds = new window.google.maps.LatLngBounds();
+  let hasBounds = false;
 
-  entries.forEach(({ project, coordinates, markerKey }) => {
-    const marker = L.marker(coordinates);
+  entries.forEach(({ project, position, markerKey }) => {
+    const marker = new window.google.maps.Marker({
+      position,
+      map: projectMap,
+      title: project.name || project.id || 'Proje',
+    });
+
     const housingLabel = formatHousingUnits(project.housingUnits);
     const metaParts = [project.category, project.city].filter(Boolean).map((value) => escapeHtml(value));
     const details = [
@@ -1970,20 +2088,34 @@ function renderProjectMap() {
       project.contractor ? `<span>Yüklenici: ${escapeHtml(project.contractor)}</span>` : '',
       project.mechanical ? `<span>Mekanik: ${escapeHtml(project.mechanical)}</span>` : '',
     ].filter(Boolean);
-    marker.bindPopup(`<div class="map-popup">${details.join('<br />')}</div>`);
-    marker.addTo(projectMapLayerGroup);
-    projectMarkers.set(markerKey, marker);
-    markers.push(marker);
+
+    const infoWindow = new window.google.maps.InfoWindow({
+      content: `<div class="map-popup">${details.join('<br />')}</div>`,
+      ariaLabel: project.name || project.id || 'Proje',
+    });
+
+    marker.addListener('click', () => {
+      activeMapInfoWindow?.close();
+      infoWindow.open({ anchor: marker, map: projectMap });
+      activeMapInfoWindow = infoWindow;
+    });
+
+    bounds.extend(position);
+    hasBounds = true;
+    projectMarkers.set(markerKey, { marker, infoWindow });
   });
 
-  if (markers.length) {
-    const group = L.featureGroup(markers);
-    const bounds = group.getBounds();
-    if (bounds.isValid()) {
-      projectMap.fitBounds(bounds, { padding: [24, 24], maxZoom: 11 });
-    }
+  if (hasBounds) {
+    projectMap.fitBounds(bounds, { top: 48, bottom: 48, left: 48, right: 48 });
+    window.google.maps.event.addListenerOnce(projectMap, 'idle', () => {
+      const zoom = projectMap.getZoom();
+      if (zoom && zoom > 11) {
+        projectMap.setZoom(11);
+      }
+    });
   } else {
-    projectMap.setView(MAP_DEFAULT_CENTER, MAP_DEFAULT_ZOOM);
+    projectMap.setCenter(MAP_DEFAULT_CENTER);
+    projectMap.setZoom(MAP_DEFAULT_ZOOM);
   }
 
   if (mapProjectList) {
@@ -2011,7 +2143,9 @@ function renderProjectMap() {
 
   if (currentView === 'project-maps') {
     window.requestAnimationFrame(() => {
-      projectMap?.invalidateSize();
+      if (window.google?.maps?.event && projectMap) {
+        window.google.maps.event.trigger(projectMap, 'resize');
+      }
     });
   }
 }
@@ -3699,17 +3833,23 @@ function setupMapSection() {
     if (!button) return;
     const markerKey = button.dataset.projectId;
     if (!markerKey) return;
-    if (typeof L === 'undefined') return;
-    if (!projectMap) {
+    if (!window.google?.maps?.Map || !projectMap) {
       renderProjectMap();
     }
-    const marker = projectMarkers.get(markerKey);
-    if (!marker || !projectMap) return;
-    const position = marker.getLatLng();
+    const entry = projectMarkers.get(markerKey);
+    if (!entry || !projectMap) return;
+    const { marker, infoWindow } = entry;
+    const position = marker.getPosition();
     if (!position) return;
-    const targetZoom = Math.max(projectMap.getZoom(), 7);
-    projectMap.setView(position, targetZoom, { animate: true });
-    marker.openPopup();
+    const currentZoom = projectMap.getZoom() ?? MAP_DEFAULT_ZOOM;
+    const targetZoom = Math.max(currentZoom, 7);
+    projectMap.setZoom(targetZoom);
+    projectMap.panTo(position);
+    if (infoWindow) {
+      activeMapInfoWindow?.close();
+      infoWindow.open({ anchor: marker, map: projectMap });
+      activeMapInfoWindow = infoWindow;
+    }
   });
 }
 

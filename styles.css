@@ -1331,6 +1331,11 @@ form .full-width {
   overflow: hidden;
 }
 
+.map-canvas .gm-style {
+  border-radius: 1.2rem;
+  overflow: hidden;
+}
+
 .map-sidebar {
   background: var(--white);
   border-radius: 1.5rem;
@@ -1388,10 +1393,6 @@ form .full-width {
   font-size: 0.8rem;
   color: var(--muted);
   text-transform: none;
-}
-
-.leaflet-container {
-  border-radius: 1.2rem;
 }
 
 .map-popup {
