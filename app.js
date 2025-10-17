@@ -4462,6 +4462,30 @@ function setupUppercaseInputs() {
     });
 }
 
+function ensureAutoAuthenticatedUser() {
+  if (currentUser) return;
+
+  let fallbackUser = userStore.find((user) => user.role === 'manager' && user.status !== 'inactive');
+  if (!fallbackUser) {
+    fallbackUser = userStore.find((user) => user.status !== 'inactive');
+  }
+
+  if (!fallbackUser) {
+    fallbackUser = {
+      id: createId('user'),
+      fullName: 'Yönetici Hesabı',
+      email: 'yonetici@kaldeboru.com',
+      password: '',
+      role: 'manager',
+      status: 'active',
+      createdAt: new Date().toISOString(),
+    };
+    userStore.push(fallbackUser);
+  }
+
+  currentUser = fallbackUser;
+}
+
 function updateAuthUI() {
   const authenticated = Boolean(currentUser);
   document.body.classList.toggle('is-authenticated', authenticated);
@@ -4486,6 +4510,8 @@ function updateAuthUI() {
 }
 
 function setupAuth() {
+  ensureAutoAuthenticatedUser();
+
   loginForm?.addEventListener('submit', (event) => {
     event.preventDefault();
     if (!loginForm) return;
@@ -4510,6 +4536,7 @@ function setupAuth() {
 
   logoutBtn?.addEventListener('click', () => {
     currentUser = null;
+    ensureAutoAuthenticatedUser();
     updateAuthUI();
     resetProjectForm();
     resetRequestForm();
