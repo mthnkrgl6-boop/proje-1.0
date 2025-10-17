@@ -265,6 +265,1224 @@ const TURKEY_CITY_COORDINATES = {
   ZONGULDAK: [41.4564, 31.7987],
 };
 
+const TURKISH_PROVINCES = [
+  'Adana',
+  'Adıyaman',
+  'Afyonkarahisar',
+  'Ağrı',
+  'Aksaray',
+  'Amasya',
+  'Ankara',
+  'Antalya',
+  'Ardahan',
+  'Artvin',
+  'Aydın',
+  'Balıkesir',
+  'Bartın',
+  'Batman',
+  'Bayburt',
+  'Bilecik',
+  'Bingöl',
+  'Bitlis',
+  'Bolu',
+  'Burdur',
+  'Bursa',
+  'Çanakkale',
+  'Çankırı',
+  'Çorum',
+  'Denizli',
+  'Diyarbakır',
+  'Düzce',
+  'Edirne',
+  'Elazığ',
+  'Erzincan',
+  'Erzurum',
+  'Eskişehir',
+  'Gaziantep',
+  'Giresun',
+  'Gümüşhane',
+  'Hakkâri',
+  'Hatay',
+  'Iğdır',
+  'Isparta',
+  'İstanbul',
+  'İzmir',
+  'Kahramanmaraş',
+  'Karabük',
+  'Karaman',
+  'Kars',
+  'Kastamonu',
+  'Kayseri',
+  'Kırıkkale',
+  'Kırklareli',
+  'Kırşehir',
+  'Kilis',
+  'Kocaeli',
+  'Konya',
+  'Kütahya',
+  'Malatya',
+  'Manisa',
+  'Mardin',
+  'Mersin',
+  'Muğla',
+  'Muş',
+  'Nevşehir',
+  'Niğde',
+  'Ordu',
+  'Osmaniye',
+  'Rize',
+  'Sakarya',
+  'Samsun',
+  'Siirt',
+  'Sinop',
+  'Sivas',
+  'Şanlıurfa',
+  'Şırnak',
+  'Tekirdağ',
+  'Tokat',
+  'Trabzon',
+  'Tunceli',
+  'Uşak',
+  'Van',
+  'Yalova',
+  'Yozgat',
+  'Zonguldak',
+];
+
+const TURKISH_DISTRICTS = {
+  ADANA: [
+    'Aladağ',
+    'Ceyhan',
+    'Çukurova',
+    'Feke',
+    'İmamoğlu',
+    'Karaisalı',
+    'Karataş',
+    'Kozan',
+    'Pozantı',
+    'Saimbeyli',
+    'Sarıçam',
+    'Seyhan',
+    'Tufanbeyli',
+    'Yumurtalık',
+    'Yüreğir',
+  ],
+  ADIYAMAN: [
+    'Adıyaman Merkez',
+    'Besni',
+    'Çelikhan',
+    'Gerger',
+    'Gölbaşı',
+    'Kahta',
+    'Samsat',
+    'Sincik',
+    'Tut',
+  ],
+  AFYONKARAHİSAR: [
+    'Afyonkarahisar Merkez',
+    'Başmakçı',
+    'Bayat',
+    'Bolvadin',
+    'Çay',
+    'Çobanlar',
+    'Dazkırı',
+    'Dinar',
+    'Emirdağ',
+    'Evciler',
+    'Hocalar',
+    'İhsaniye',
+    'İscehisar',
+    'Kızılören',
+    'Sandıklı',
+    'Sinanpaşa',
+    'Sultandağı',
+    'Şuhut',
+  ],
+  AĞRI: [
+    'Ağrı Merkez',
+    'Diyadin',
+    'Doğubayazıt',
+    'Eleşkirt',
+    'Hamur',
+    'Patnos',
+    'Taşlıçay',
+    'Tutak',
+  ],
+  AKSARAY: [
+    'Ağaçören',
+    'Aksaray Merkez',
+    'Eskil',
+    'Gülağaç',
+    'Güzelyurt',
+    'Ortaköy',
+    'Sarıyahşi',
+    'Sultanhanı',
+  ],
+  AMASYA: [
+    'Amasya Merkez',
+    'Göynücek',
+    'Gümüşhacıköy',
+    'Hamamözü',
+    'Merzifon',
+    'Suluova',
+    'Taşova',
+  ],
+  ANKARA: [
+    'Akyurt',
+    'Altındağ',
+    'Ayaş',
+    'Bala',
+    'Beypazarı',
+    'Çamlıdere',
+    'Çankaya',
+    'Çubuk',
+    'Elmadağ',
+    'Etimesgut',
+    'Evren',
+    'Gölbaşı',
+    'Güdül',
+    'Haymana',
+    'Kalecik',
+    'Kahramankazan',
+    'Keçiören',
+    'Kızılcahamam',
+    'Mamak',
+    'Nallıhan',
+    'Polatlı',
+    'Pursaklar',
+    'Sincan',
+    'Şereflikoçhisar',
+    'Yenimahalle',
+  ],
+  ANTALYA: [
+    'Akseki',
+    'Aksu',
+    'Alanya',
+    'Demre',
+    'Döşemealtı',
+    'Elmalı',
+    'Finike',
+    'Gazipaşa',
+    'Gündoğmuş',
+    'İbradı',
+    'Kaş',
+    'Kemer',
+    'Kepez',
+    'Konyaaltı',
+    'Korkuteli',
+    'Kumluca',
+    'Manavgat',
+    'Muratpaşa',
+    'Serik',
+  ],
+  ARDAHAN: [
+    'Ardahan Merkez',
+    'Çıldır',
+    'Damal',
+    'Göle',
+    'Hanak',
+    'Posof',
+  ],
+  ARTVİN: [
+    'Arhavi',
+    'Artvin Merkez',
+    'Borçka',
+    'Hopa',
+    'Kemalpaşa',
+    'Murgul',
+    'Şavşat',
+    'Yusufeli',
+  ],
+  AYDIN: [
+    'Bozdoğan',
+    'Buharkent',
+    'Çine',
+    'Didim',
+    'Efeler',
+    'Germencik',
+    'İncirliova',
+    'Karacasu',
+    'Karpuzlu',
+    'Koçarlı',
+    'Köşk',
+    'Kuşadası',
+    'Kuyucak',
+    'Nazilli',
+    'Söke',
+    'Sultanhisar',
+    'Yenipazar',
+  ],
+  BALIKESİR: [
+    'Altıeylül',
+    'Ayvalık',
+    'Balya',
+    'Bandırma',
+    'Bigadiç',
+    'Burhaniye',
+    'Dursunbey',
+    'Edremit',
+    'Erdek',
+    'Gömeç',
+    'Gönen',
+    'Havran',
+    'İvrindi',
+    'Karesi',
+    'Kepsut',
+    'Manyas',
+    'Marmara',
+    'Savaştepe',
+    'Sındırgı',
+    'Susurluk',
+  ],
+  BARTIN: [
+    'Amasra',
+    'Bartın Merkez',
+    'Kurucaşile',
+    'Ulus',
+  ],
+  BATMAN: [
+    'Batman Merkez',
+    'Beşiri',
+    'Gercüş',
+    'Hasankeyf',
+    'Kozluk',
+    'Sason',
+  ],
+  BAYBURT: [
+    'Aydıntepe',
+    'Bayburt Merkez',
+    'Demirözü',
+  ],
+  BİLECİK: [
+    'Bilecik Merkez',
+    'Bozüyük',
+    'Gölpazarı',
+    'İnhisar',
+    'Osmaneli',
+    'Pazaryeri',
+    'Söğüt',
+    'Yenipazar',
+  ],
+  BİNGÖL: [
+    'Adaklı',
+    'Bingöl Merkez',
+    'Genç',
+    'Karlıova',
+    'Kiğı',
+    'Solhan',
+    'Yayladere',
+    'Yedisu',
+  ],
+  BİTLİS: [
+    'Adilcevaz',
+    'Ahlat',
+    'Bitlis Merkez',
+    'Güroymak',
+    'Hizan',
+    'Mutki',
+    'Tatvan',
+  ],
+  BOLU: [
+    'Bolu Merkez',
+    'Dörtdivan',
+    'Gerede',
+    'Göynük',
+    'Kıbrıscık',
+    'Mengen',
+    'Mudurnu',
+    'Seben',
+    'Yeniçağa',
+  ],
+  BURDUR: [
+    'Ağlasun',
+    'Altınyayla',
+    'Bucak',
+    'Burdur Merkez',
+    'Çavdır',
+    'Çeltikçi',
+    'Gölhisar',
+    'Karamanlı',
+    'Kemer',
+    'Tefenni',
+    'Yeşilova',
+  ],
+  BURSA: [
+    'Büyükorhan',
+    'Gemlik',
+    'Gürsu',
+    'Harmancık',
+    'İnegöl',
+    'İznik',
+    'Karacabey',
+    'Keles',
+    'Kestel',
+    'Mudanya',
+    'Mustafakemalpaşa',
+    'Nilüfer',
+    'Orhaneli',
+    'Orhangazi',
+    'Osmangazi',
+    'Yenişehir',
+    'Yıldırım',
+  ],
+  ÇANAKKALE: [
+    'Ayvacık',
+    'Bayramiç',
+    'Biga',
+    'Bozcaada',
+    'Çan',
+    'Çanakkale Merkez',
+    'Eceabat',
+    'Ezine',
+    'Gelibolu',
+    'Gökçeada',
+    'Lapseki',
+    'Yenice',
+  ],
+  ÇANKIRI: [
+    'Atkaracalar',
+    'Bayramören',
+    'Çankırı Merkez',
+    'Çerkeş',
+    'Eldivan',
+    'Ilgaz',
+    'Kızılırmak',
+    'Korgun',
+    'Kurşunlu',
+    'Orta',
+    'Şabanözü',
+    'Yapraklı',
+  ],
+  ÇORUM: [
+    'Alaca',
+    'Bayat',
+    'Boğazkale',
+    'Çorum Merkez',
+    'Dodurga',
+    'İskilip',
+    'Kargı',
+    'Laçin',
+    'Mecitözü',
+    'Oğuzlar',
+    'Ortaköy',
+    'Osmancık',
+    'Sungurlu',
+    'Uğurludağ',
+  ],
+  DENİZLİ: [
+    'Acıpayam',
+    'Babadağ',
+    'Baklan',
+    'Bekilli',
+    'Beyağaç',
+    'Bozkurt',
+    'Buldan',
+    'Çal',
+    'Çameli',
+    'Çardak',
+    'Çivril',
+    'Güney',
+    'Honaz',
+    'Kale',
+    'Merkezefendi',
+    'Pamukkale',
+    'Sarayköy',
+    'Serinhisar',
+    'Tavas',
+  ],
+  DİYARBAKIR: [
+    'Bağlar',
+    'Bismil',
+    'Çermik',
+    'Çınar',
+    'Çüngüş',
+    'Dicle',
+    'Eğil',
+    'Ergani',
+    'Hani',
+    'Hazro',
+    'Kayapınar',
+    'Kocaköy',
+    'Kulp',
+    'Lice',
+    'Silvan',
+    'Sur',
+    'Yenişehir',
+  ],
+  DÜZCE: [
+    'Akçakoca',
+    'Cumayeri',
+    'Çilimli',
+    'Düzce Merkez',
+    'Gölyaka',
+    'Gümüşova',
+    'Kaynaşlı',
+    'Yığılca',
+  ],
+  EDİRNE: [
+    'Edirne Merkez',
+    'Enez',
+    'Havsa',
+    'İpsala',
+    'Keşan',
+    'Lalapaşa',
+    'Meriç',
+    'Süloğlu',
+    'Uzunköprü',
+  ],
+  ELAZIĞ: [
+    'Ağın',
+    'Alacakaya',
+    'Arıcak',
+    'Baskil',
+    'Elazığ Merkez',
+    'Karakoçan',
+    'Keban',
+    'Kovancılar',
+    'Maden',
+    'Palu',
+    'Sivrice',
+  ],
+  ERZİNCAN: [
+    'Çayırlı',
+    'Erzincan Merkez',
+    'İliç',
+    'Kemah',
+    'Kemaliye',
+    'Otlukbeli',
+    'Refahiye',
+    'Tercan',
+    'Üzümlü',
+  ],
+  ERZURUM: [
+    'Aşkale',
+    'Aziziye',
+    'Çat',
+    'Hınıs',
+    'Horasan',
+    'İspir',
+    'Karaçoban',
+    'Karayazı',
+    'Köprüköy',
+    'Narman',
+    'Oltu',
+    'Olur',
+    'Palandöken',
+    'Pasinler',
+    'Pazaryolu',
+    'Şenkaya',
+    'Tekman',
+    'Tortum',
+    'Uzundere',
+    'Yakutiye',
+  ],
+  ESKİŞEHİR: [
+    'Alpu',
+    'Beylikova',
+    'Çifteler',
+    'Günyüzü',
+    'Han',
+    'İnönü',
+    'Mahmudiye',
+    'Mihalgazi',
+    'Mihalıççık',
+    'Odunpazarı',
+    'Sarıcakaya',
+    'Seyitgazi',
+    'Sivrihisar',
+    'Tepebaşı',
+  ],
+  GAZİANTEP: [
+    'Araban',
+    'İslahiye',
+    'Karkamış',
+    'Nizip',
+    'Nurdağı',
+    'Oğuzeli',
+    'Şahinbey',
+    'Şehitkamil',
+    'Yavuzeli',
+  ],
+  GİRESUN: [
+    'Alucra',
+    'Bulancak',
+    'Çamoluk',
+    'Çanakçı',
+    'Dereli',
+    'Doğankent',
+    'Espiye',
+    'Eynesil',
+    'Giresun Merkez',
+    'Görele',
+    'Güce',
+    'Keşap',
+    'Piraziz',
+    'Şebinkarahisar',
+    'Tirebolu',
+    'Yağlıdere',
+  ],
+  GÜMÜŞHANE: [
+    'Gümüşhane Merkez',
+    'Kelkit',
+    'Köse',
+    'Kürtün',
+    'Şiran',
+    'Torul',
+  ],
+  HAKKÂRİ: [
+    'Çukurca',
+    'Derecik',
+    'Hakkâri Merkez',
+    'Şemdinli',
+    'Yüksekova',
+  ],
+  HATAY: [
+    'Altınözü',
+    'Antakya',
+    'Arsuz',
+    'Belen',
+    'Defne',
+    'Dörtyol',
+    'Erzin',
+    'Hassa',
+    'İskenderun',
+    'Kırıkhan',
+    'Kumlu',
+    'Payas',
+    'Reyhanlı',
+    'Samandağ',
+    'Yayladağı',
+  ],
+  IĞDIR: [
+    'Aralık',
+    'Iğdır Merkez',
+    'Karakoyunlu',
+    'Tuzluca',
+  ],
+  ISPARTA: [
+    'Aksu',
+    'Atabey',
+    'Eğirdir',
+    'Gelendost',
+    'Gönen',
+    'Isparta Merkez',
+    'Keçiborlu',
+    'Senirkent',
+    'Sütçüler',
+    'Şarkikaraağaç',
+    'Uluborlu',
+    'Yalvaç',
+    'Yenişarbademli',
+  ],
+  İSTANBUL: [
+    'Adalar',
+    'Arnavutköy',
+    'Ataşehir',
+    'Avcılar',
+    'Bağcılar',
+    'Bahçelievler',
+    'Bakırköy',
+    'Başakşehir',
+    'Bayrampaşa',
+    'Beşiktaş',
+    'Beykoz',
+    'Beylikdüzü',
+    'Beyoğlu',
+    'Büyükçekmece',
+    'Çatalca',
+    'Çekmeköy',
+    'Esenler',
+    'Esenyurt',
+    'Eyüpsultan',
+    'Fatih',
+    'Gaziosmanpaşa',
+    'Güngören',
+    'Kadıköy',
+    'Kağıthane',
+    'Kartal',
+    'Küçükçekmece',
+    'Maltepe',
+    'Pendik',
+    'Sancaktepe',
+    'Sarıyer',
+    'Silivri',
+    'Sultanbeyli',
+    'Sultangazi',
+    'Şile',
+    'Şişli',
+    'Tuzla',
+    'Ümraniye',
+    'Üsküdar',
+    'Zeytinburnu',
+  ],
+  İZMİR: [
+    'Aliağa',
+    'Balçova',
+    'Bayındır',
+    'Bayraklı',
+    'Bergama',
+    'Beydağ',
+    'Bornova',
+    'Buca',
+    'Çeşme',
+    'Çiğli',
+    'Dikili',
+    'Foça',
+    'Gaziemir',
+    'Güzelbahçe',
+    'Karabağlar',
+    'Karaburun',
+    'Karşıyaka',
+    'Kemalpaşa',
+    'Kınık',
+    'Kiraz',
+    'Konak',
+    'Menderes',
+    'Menemen',
+    'Narlıdere',
+    'Ödemiş',
+    'Seferihisar',
+    'Selçuk',
+    'Tire',
+    'Torbalı',
+    'Urla',
+  ],
+  KAHRAMANMARAŞ: [
+    'Afşin',
+    'Andırın',
+    'Çağlayancerit',
+    'Dulkadiroğlu',
+    'Ekinözü',
+    'Elbistan',
+    'Göksun',
+    'Onikişubat',
+    'Pazarcık',
+    'Türkoğlu',
+  ],
+  KARABÜK: [
+    'Eflani',
+    'Eskipazar',
+    'Karabük Merkez',
+    'Ovacık',
+    'Safranbolu',
+    'Yenice',
+  ],
+  KARAMAN: [
+    'Ayrancı',
+    'Başyayla',
+    'Ermenek',
+    'Karaman Merkez',
+    'Kazımkarabekir',
+    'Sarıveliler',
+  ],
+  KARS: [
+    'Akyaka',
+    'Arpaçay',
+    'Digor',
+    'Kağızman',
+    'Kars Merkez',
+    'Sarıkamış',
+    'Selim',
+    'Susuz',
+  ],
+  KASTAMONU: [
+    'Abana',
+    'Ağlı',
+    'Araç',
+    'Azdavay',
+    'Bozkurt',
+    'Cide',
+    'Çatalzeytin',
+    'Daday',
+    'Devrekani',
+    'Doğanyurt',
+    'Hanönü',
+    'İhsangazi',
+    'İnebolu',
+    'Kastamonu Merkez',
+    'Küre',
+    'Pınarbaşı',
+    'Seydiler',
+    'Şenpazar',
+    'Taşköprü',
+    'Tosya',
+  ],
+  KAYSERİ: [
+    'Akkışla',
+    'Bünyan',
+    'Develi',
+    'Felahiye',
+    'Hacılar',
+    'İncesu',
+    'Kocasinan',
+    'Melikgazi',
+    'Özvatan',
+    'Pınarbaşı',
+    'Sarız',
+    'Talas',
+    'Tomarza',
+    'Yahyalı',
+    'Yeşilhisar',
+  ],
+  KIRIKKALE: [
+    'Bahşılı',
+    'Balışeyh',
+    'Çelebi',
+    'Delice',
+    'Karakeçili',
+    'Keskin',
+    'Kırıkkale Merkez',
+    'Sulakyurt',
+    'Yahşihan',
+  ],
+  KIRKLARELİ: [
+    'Babaeski',
+    'Demirköy',
+    'Kırklareli Merkez',
+    'Kofçaz',
+    'Lüleburgaz',
+    'Pehlivanköy',
+    'Pınarhisar',
+    'Vize',
+  ],
+  KIRŞEHİR: [
+    'Akçakent',
+    'Akpınar',
+    'Boztepe',
+    'Çiçekdağı',
+    'Kaman',
+    'Kırşehir Merkez',
+    'Mucur',
+  ],
+  KİLİS: [
+    'Elbeyli',
+    'Kilis Merkez',
+    'Musabeyli',
+    'Polateli',
+  ],
+  KOCAELİ: [
+    'Başiskele',
+    'Çayırova',
+    'Darıca',
+    'Derince',
+    'Dilovası',
+    'Gebze',
+    'Gölcük',
+    'İzmit',
+    'Kandıra',
+    'Karamürsel',
+    'Kartepe',
+    'Körfez',
+  ],
+  KONYA: [
+    'Ahırlı',
+    'Akören',
+    'Akşehir',
+    'Altınekin',
+    'Beyşehir',
+    'Bozkır',
+    'Cihanbeyli',
+    'Çeltik',
+    'Çumra',
+    'Derbent',
+    'Derebucak',
+    'Doğanhisar',
+    'Emirgazi',
+    'Ereğli',
+    'Güneysınır',
+    'Hadim',
+    'Halkapınar',
+    'Hüyük',
+    'Ilgın',
+    'Kadınhanı',
+    'Karapınar',
+    'Karatay',
+    'Kulu',
+    'Meram',
+    'Sarayönü',
+    'Selçuklu',
+    'Seydişehir',
+    'Taşkent',
+    'Tuzlukçu',
+    'Yalıhüyük',
+  ],
+  KÜTAHYA: [
+    'Altıntaş',
+    'Aslanapa',
+    'Çavdarhisar',
+    'Domaniç',
+    'Dumlupınar',
+    'Emet',
+    'Gediz',
+    'Hisarcık',
+    'Kütahya Merkez',
+    'Pazarlar',
+    'Şaphane',
+    'Simav',
+    'Tavşanlı',
+  ],
+  MALATYA: [
+    'Akçadağ',
+    'Arapgir',
+    'Arguvan',
+    'Battalgazi',
+    'Darende',
+    'Doğanşehir',
+    'Doğanyol',
+    'Hekimhan',
+    'Kale',
+    'Kuluncak',
+    'Pütürge',
+    'Yazıhan',
+    'Yeşilyurt',
+  ],
+  MANİSA: [
+    'Ahmetli',
+    'Akhisar',
+    'Alaşehir',
+    'Demirci',
+    'Gölmarmara',
+    'Gördes',
+    'Kırkağaç',
+    'Köprübaşı',
+    'Kula',
+    'Salihli',
+    'Sarıgöl',
+    'Saruhanlı',
+    'Selendi',
+    'Soma',
+    'Şehzadeler',
+    'Turgutlu',
+    'Yunusemre',
+  ],
+  MARDİN: [
+    'Artuklu',
+    'Dargeçit',
+    'Derik',
+    'Kızıltepe',
+    'Mazıdağı',
+    'Midyat',
+    'Nusaybin',
+    'Ömerli',
+    'Savur',
+    'Yeşilli',
+  ],
+  MERSİN: [
+    'Akdeniz',
+    'Anamur',
+    'Aydıncık',
+    'Bozyazı',
+    'Çamlıyayla',
+    'Erdemli',
+    'Gülnar',
+    'Mezitli',
+    'Mut',
+    'Silifke',
+    'Tarsus',
+    'Toroslar',
+    'Yenişehir',
+  ],
+  MUĞLA: [
+    'Bodrum',
+    'Dalaman',
+    'Datça',
+    'Fethiye',
+    'Kavaklıdere',
+    'Köyceğiz',
+    'Marmaris',
+    'Menteşe',
+    'Milas',
+    'Ortaca',
+    'Seydikemer',
+    'Ula',
+    'Yatağan',
+  ],
+  MUŞ: [
+    'Bulanık',
+    'Hasköy',
+    'Korkut',
+    'Malazgirt',
+    'Muş Merkez',
+    'Varto',
+  ],
+  NEVŞEHİR: [
+    'Acıgöl',
+    'Avanos',
+    'Derinkuyu',
+    'Gülşehir',
+    'Hacıbektaş',
+    'Kozaklı',
+    'Nevşehir Merkez',
+    'Ürgüp',
+  ],
+  NİĞDE: [
+    'Altunhisar',
+    'Bor',
+    'Çamardı',
+    'Çiftlik',
+    'Niğde Merkez',
+    'Ulukışla',
+  ],
+  ORDU: [
+    'Akkuş',
+    'Altınordu',
+    'Aybastı',
+    'Çamaş',
+    'Çatalpınar',
+    'Çaybaşı',
+    'Fatsa',
+    'Gölköy',
+    'Gülyalı',
+    'Gürgentepe',
+    'İkizce',
+    'Kabadüz',
+    'Kabataş',
+    'Korgan',
+    'Kumru',
+    'Mesudiye',
+    'Perşembe',
+    'Ulubey',
+    'Ünye',
+  ],
+  OSMANİYE: [
+    'Bahçe',
+    'Düziçi',
+    'Hasanbeyli',
+    'Kadirli',
+    'Osmaniye Merkez',
+    'Sumbas',
+    'Toprakkale',
+  ],
+  RİZE: [
+    'Ardeşen',
+    'Çamlıhemşin',
+    'Çayeli',
+    'Derepazarı',
+    'Fındıklı',
+    'Güneysu',
+    'Hemşin',
+    'İkizdere',
+    'İyidere',
+    'Kalkandere',
+    'Pazar',
+    'Rize Merkez',
+  ],
+  SAKARYA: [
+    'Adapazarı',
+    'Akyazı',
+    'Arifiye',
+    'Erenler',
+    'Ferizli',
+    'Geyve',
+    'Hendek',
+    'Karapürçek',
+    'Karasu',
+    'Kaynarca',
+    'Kocaali',
+    'Pamukova',
+    'Sapanca',
+    'Serdivan',
+    'Söğütlü',
+    'Taraklı',
+  ],
+  SAMSUN: [
+    'Alaçam',
+    'Asarcık',
+    'Atakum',
+    'Ayvacık',
+    'Bafra',
+    'Canik',
+    'Çarşamba',
+    'Havza',
+    'İlkadım',
+    'Kavak',
+    'Ladik',
+    'Ondokuzmayıs',
+    'Salıpazarı',
+    'Tekkeköy',
+    'Terme',
+    'Vezirköprü',
+    'Yakakent',
+  ],
+  SİİRT: [
+    'Baykan',
+    'Eruh',
+    'Kurtalan',
+    'Pervari',
+    'Siirt Merkez',
+    'Şirvan',
+    'Tillo',
+  ],
+  SİNOP: [
+    'Ayancık',
+    'Boyabat',
+    'Dikmen',
+    'Durağan',
+    'Erfelek',
+    'Gerze',
+    'Saraydüzü',
+    'Sinop Merkez',
+    'Türkeli',
+  ],
+  SİVAS: [
+    'Akıncılar',
+    'Altınyayla',
+    'Divriği',
+    'Doğanşar',
+    'Gemerek',
+    'Gölova',
+    'Gürün',
+    'Hafik',
+    'İmranlı',
+    'Kangal',
+    'Koyulhisar',
+    'Sivas Merkez',
+    'Suşehri',
+    'Şarkışla',
+    'Ulaş',
+    'Yıldızeli',
+    'Zara',
+  ],
+  ŞANLIURFA: [
+    'Akçakale',
+    'Birecik',
+    'Bozova',
+    'Ceylanpınar',
+    'Eyyübiye',
+    'Halfeti',
+    'Haliliye',
+    'Harran',
+    'Hilvan',
+    'Karaköprü',
+    'Siverek',
+    'Suruç',
+    'Viranşehir',
+  ],
+  ŞIRNAK: [
+    'Beytüşşebap',
+    'Cizre',
+    'Güçlükonak',
+    'İdil',
+    'Silopi',
+    'Şırnak Merkez',
+    'Uludere',
+  ],
+  TEKİRDAĞ: [
+    'Çerkezköy',
+    'Çorlu',
+    'Ergene',
+    'Hayrabolu',
+    'Kapaklı',
+    'Malkara',
+    'Marmaraereğlisi',
+    'Muratlı',
+    'Saray',
+    'Süleymanpaşa',
+    'Şarköy',
+  ],
+  TOKAT: [
+    'Almus',
+    'Artova',
+    'Başçiftlik',
+    'Erbaa',
+    'Niksar',
+    'Pazar',
+    'Reşadiye',
+    'Sulusaray',
+    'Tokat Merkez',
+    'Turhal',
+    'Yeşilyurt',
+    'Zile',
+  ],
+  TRABZON: [
+    'Akçaabat',
+    'Araklı',
+    'Arsin',
+    'Beşikdüzü',
+    'Çarşıbaşı',
+    'Çaykara',
+    'Dernekpazarı',
+    'Düzköy',
+    'Hayrat',
+    'Köprübaşı',
+    'Maçka',
+    'Of',
+    'Ortahisar',
+    'Şalpazarı',
+    'Sürmene',
+    'Tonya',
+    'Vakfıkebir',
+    'Yomra',
+  ],
+  TUNCELİ: [
+    'Çemişgezek',
+    'Hozat',
+    'Mazgirt',
+    'Nazımiye',
+    'Ovacık',
+    'Pertek',
+    'Pülümür',
+    'Tunceli Merkez',
+  ],
+  UŞAK: [
+    'Banaz',
+    'Eşme',
+    'Karahallı',
+    'Sivaslı',
+    'Ulubey',
+    'Uşak Merkez',
+  ],
+  VAN: [
+    'Bahçesaray',
+    'Başkale',
+    'Çaldıran',
+    'Çatak',
+    'Edremit',
+    'Erciş',
+    'Gevaş',
+    'Gürpınar',
+    'İpekyolu',
+    'Muradiye',
+    'Özalp',
+    'Saray',
+    'Tuşba',
+  ],
+  YALOVA: [
+    'Altınova',
+    'Armutlu',
+    'Çınarcık',
+    'Çiftlikköy',
+    'Termal',
+    'Yalova Merkez',
+  ],
+  YOZGAT: [
+    'Akdağmadeni',
+    'Aydıncık',
+    'Boğazlıyan',
+    'Çandır',
+    'Çayıralan',
+    'Çekerek',
+    'Kadışehri',
+    'Saraykent',
+    'Sarıkaya',
+    'Şefaatli',
+    'Sorgun',
+    'Yenifakılı',
+    'Yerköy',
+    'Yozgat Merkez',
+  ],
+  ZONGULDAK: [
+    'Alaplı',
+    'Çaycuma',
+    'Devrek',
+    'Ereğli',
+    'Gökçebey',
+    'Kilimli',
+    'Kozlu',
+    'Zonguldak Merkez',
+  ],
+};
+
 let projectMap = null;
 let projectMapTileLayer = null;
 const projectMarkers = new Map();
@@ -778,6 +1996,103 @@ function refreshStaffSelectors() {
     .forEach((select) => populateStaffSelect(select, select.value || ''));
 }
 
+function getProjectLocationFields() {
+  if (!(projectForm instanceof HTMLFormElement)) {
+    return { citySelect: null, districtSelect: null };
+  }
+  const city = projectForm.elements.namedItem('projectCity');
+  const district = projectForm.elements.namedItem('projectDistrict');
+  return {
+    citySelect: city instanceof HTMLSelectElement ? city : null,
+    districtSelect: district instanceof HTMLSelectElement ? district : null,
+  };
+}
+
+function populateCitySelect(select, selectedValue) {
+  if (!(select instanceof HTMLSelectElement)) return '';
+  const normalizedSelected = normalizeCityKey(selectedValue);
+  const options = ['<option value="">İl Seçin</option>'];
+  let matchedValue = '';
+
+  TURKISH_PROVINCES.forEach((province) => {
+    const text = sanitizeText(province);
+    if (!text) return;
+    const option = `<option value="${escapeHtml(text)}">${escapeHtml(text)}</option>`;
+    options.push(option);
+    if (normalizedSelected && normalizeCityKey(text) === normalizedSelected) {
+      matchedValue = text;
+    }
+  });
+
+  const extra = sanitizeText(selectedValue);
+  if (extra && !matchedValue) {
+    options.push(`<option value="${escapeHtml(extra)}">${escapeHtml(extra)}</option>`);
+    matchedValue = extra;
+  }
+
+  select.innerHTML = options.join('');
+  select.value = matchedValue || '';
+  return select.value;
+}
+
+function populateDistrictSelect(select, cityValue, selectedDistrict) {
+  if (!(select instanceof HTMLSelectElement)) return '';
+  const normalizedCity = normalizeCityKey(cityValue);
+  const normalizedSelected = normalizeCityKey(selectedDistrict);
+  const districts = normalizedCity ? TURKISH_DISTRICTS[normalizedCity] ?? [] : [];
+  const hasCity = Boolean(normalizedCity);
+  const hasDistrictData = districts.length > 0;
+  const hasCustomSelection = Boolean(sanitizeText(selectedDistrict));
+  const placeholder = hasCity
+    ? hasDistrictData || hasCustomSelection
+      ? 'İlçe Seçin'
+      : 'İlçe bulunamadı'
+    : 'Önce il seçin';
+  const options = [`<option value="">${escapeHtml(placeholder)}</option>`];
+  let matchedValue = '';
+
+  districts.forEach((district) => {
+    const text = sanitizeText(district);
+    if (!text) return;
+    options.push(`<option value="${escapeHtml(text)}">${escapeHtml(text)}</option>`);
+    if (normalizedSelected && normalizeCityKey(text) === normalizedSelected) {
+      matchedValue = text;
+    }
+  });
+
+  const extra = sanitizeText(selectedDistrict);
+  if (extra && !matchedValue) {
+    options.push(`<option value="${escapeHtml(extra)}">${escapeHtml(extra)}</option>`);
+    matchedValue = extra;
+  }
+
+  select.innerHTML = options.join('');
+  select.value = matchedValue || '';
+  select.disabled = !hasCity || (!hasDistrictData && !hasCustomSelection);
+  return select.value;
+}
+
+function applyProjectLocationToForm(city, district) {
+  const { citySelect, districtSelect } = getProjectLocationFields();
+  if (!citySelect || !districtSelect) return;
+  const appliedCity = populateCitySelect(citySelect, city);
+  populateDistrictSelect(districtSelect, appliedCity, district);
+}
+
+function setupProjectLocationSelectors() {
+  const { citySelect, districtSelect } = getProjectLocationFields();
+  if (!citySelect || !districtSelect) return;
+
+  const initialCity = citySelect.value || '';
+  const initialDistrict = districtSelect.value || '';
+  const appliedCity = populateCitySelect(citySelect, initialCity);
+  populateDistrictSelect(districtSelect, appliedCity, initialDistrict);
+
+  citySelect.addEventListener('change', () => {
+    populateDistrictSelect(districtSelect, citySelect.value, '');
+  });
+}
+
 function normalizeHeaderValue(value) {
   if (value === undefined || value === null) return '';
   return String(value)
@@ -798,6 +2113,395 @@ function resolveProjectField(header) {
 function sanitizeText(value) {
   if (value === undefined || value === null) return '';
   return String(value).trim();
+}
+
+function normalizeSearchQuery(value) {
+  if (value === undefined || value === null) return '';
+  return String(value).toLocaleLowerCase('tr-TR').trim();
+}
+
+function normalizeCoordinates(value) {
+  if (!value || typeof value !== 'object') return null;
+  const lat = Number(value.lat ?? value.latitude ?? value.y);
+  const lng = Number(value.lng ?? value.lon ?? value.longitude ?? value.x);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const normalized = { lat, lng };
+  if (value.source) {
+    normalized.source = value.source;
+  }
+  return normalized;
+}
+
+function normalizeProjectCategory(value) {
+  const text = sanitizeText(value);
+  if (!text) return 'Özel';
+  const normalized = text.toLocaleLowerCase('tr-TR');
+  if (normalized.includes('toki')) return 'TOKİ';
+  if (normalized.includes('toplu konut')) return 'TOKİ';
+  if (normalized.includes('emlak')) return 'Emlak Konut';
+  if (
+    normalized.includes('kamu') ||
+    normalized.includes('beled') ||
+    normalized.includes('resmi') ||
+    normalized.includes('devlet') ||
+    normalized.includes('idare')
+  ) {
+    return 'Kamu';
+  }
+  if (
+    normalized.includes('özel') ||
+    normalized.includes('ozel') ||
+    normalized.includes('private') ||
+    normalized.includes('residence') ||
+    normalized.includes('ticari') ||
+    normalized.includes('residans')
+  ) {
+    return 'Özel';
+  }
+  return 'Özel';
+}
+
+function normalizeHousingUnits(value) {
+  if (value === undefined || value === null || value === '') return '';
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || value <= 0) return '';
+    return String(Math.round(value));
+  }
+  const text = sanitizeText(value);
+  if (!text) return '';
+  const cleaned = text.replace(/\s+/g, ' ');
+  const match = cleaned.match(/\d[\d.,]*/u);
+  if (!match) {
+    return cleaned;
+  }
+  const digits = match[0].replace(/\D/g, '');
+  if (!digits) {
+    return cleaned;
+  }
+  const numeric = Number(digits);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return '';
+  }
+  const normalizedNumber = String(Math.trunc(numeric));
+  if (!/[a-zçğıöşü]/i.test(cleaned)) {
+    return normalizedNumber;
+  }
+  return cleaned.replace(match[0], normalizedNumber);
+}
+
+function gatherColumnValues(rows, columnIndex, startIndex, maxSamples = 40) {
+  const values = [];
+  for (let rowIndex = startIndex; rowIndex < rows.length && values.length < maxSamples; rowIndex += 1) {
+    const rawRow = rows[rowIndex];
+    const cells = Array.isArray(rawRow) ? rawRow : Object.values(rawRow ?? {});
+    if (columnIndex >= cells.length) continue;
+    const cell = cells[columnIndex];
+    if (cell === undefined || cell === null) continue;
+    if (typeof cell === 'number' && Number.isFinite(cell)) {
+      values.push(cell);
+      continue;
+    }
+    const text = sanitizeText(cell);
+    if (text) {
+      values.push(cell);
+    }
+  }
+  return values;
+}
+
+function inferProjectFieldFromData(rows, columnIndex, startIndex, assignedFields, headerValue) {
+  const availableFields = Object.keys(PROJECT_FIELD_ALIASES).filter((field) => !assignedFields.has(field));
+  if (!availableFields.length) return null;
+
+  const rawValues = gatherColumnValues(rows, columnIndex, startIndex);
+  if (!rawValues.length) return null;
+
+  const headerNormalized = normalizeHeaderValue(headerValue ?? '');
+  let bestField = null;
+  let bestScore = 0;
+
+  availableFields.forEach((field) => {
+    const score = scoreColumnForField(field, headerNormalized, rawValues);
+    if (score > bestScore) {
+      bestField = field;
+      bestScore = score;
+    }
+  });
+
+  if (!bestField) return null;
+
+  const MIN_INFERENCE_SCORE = 3;
+  if (bestScore < MIN_INFERENCE_SCORE) {
+    return null;
+  }
+
+  return bestField;
+}
+
+function scoreColumnForField(field, headerNormalized, rawValues) {
+  const sanitizedValues = [];
+  const filteredRawValues = [];
+  rawValues.forEach((value) => {
+    if (value === undefined || value === null) return;
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      sanitizedValues.push(String(value));
+      filteredRawValues.push(value);
+      return;
+    }
+    const text = sanitizeText(value);
+    if (!text) return;
+    sanitizedValues.push(text);
+    filteredRawValues.push(value);
+  });
+
+  if (!sanitizedValues.length) return 0;
+
+  const header = headerNormalized || '';
+  const lowerValues = sanitizedValues.map((value) => value.toLocaleLowerCase('tr-TR'));
+  const total = sanitizedValues.length;
+  const uniqueRatio = new Set(lowerValues).size / total;
+  const spaceRatio = sanitizedValues.filter((value) => value.includes(' ')).length / total;
+  const mediumTextRatio = sanitizedValues.filter((value) => value.length >= 12).length / total;
+  const longTextRatio = sanitizedValues.filter((value) => value.length >= 35).length / total;
+  const numericRatio = sanitizedValues.filter((value) => /^[0-9]+$/.test(value)).length / total;
+  const codeRatio = sanitizedValues.filter((value) => /^[0-9a-zA-Z_.\-/]+$/.test(value) && !value.includes(' ')).length / total;
+  const shortLengthRatio = sanitizedValues.filter((value) => value.length <= 8).length / total;
+  const dateRatio = filteredRawValues.filter((value) => looksLikeDateValue(value)).length / total;
+  const cityMatchRatio = lowerValues.filter((value) => isKnownCity(value)).length / total;
+  const categoryMatchRatio = lowerValues.filter((value) =>
+    CATEGORY_KEYWORDS.some((keyword) => value.includes(keyword))
+  ).length / total;
+  const contractorMatchRatio = lowerValues.filter((value) =>
+    CONTRACTOR_KEYWORDS.some((keyword) => value.includes(keyword))
+  ).length / total;
+  const mechanicalMatchRatio = lowerValues.filter((value) =>
+    MECHANICAL_KEYWORDS.some((keyword) => value.includes(keyword))
+  ).length / total;
+  const channelKeywordRatio = lowerValues.filter((value) =>
+    CHANNEL_KEYWORDS.some((keyword) => value.includes(keyword))
+  ).length / total;
+  const dealerNameRatio = lowerValues.filter((value) =>
+    DEALER_NAME_KEYWORDS.some((keyword) => value.includes(keyword))
+  ).length / total;
+  const salesKeywordRatio = lowerValues.filter((value) =>
+    SALES_STATUS_KEYWORDS.some((keyword) => value.includes(keyword))
+  ).length / total;
+  const institutionKeywordRatio = lowerValues.filter((value) =>
+    INSTITUTION_KEYWORDS.some((keyword) => value.includes(keyword))
+  ).length / total;
+  const teamKeywordRatio = lowerValues.filter((value) =>
+    TEAM_KEYWORDS.some((keyword) => value.includes(keyword))
+  ).length / total;
+  const scopeKeywordRatio = lowerValues.filter((value) =>
+    SCOPE_KEYWORDS.some((keyword) => value.includes(keyword))
+  ).length / total;
+  const progressKeywordRatio = lowerValues.filter((value) =>
+    PROGRESS_KEYWORDS.some((keyword) => value.includes(keyword))
+  ).length / total;
+  const housingKeywordRatio = lowerValues.filter((value) =>
+    HOUSING_KEYWORDS.some((keyword) => value.includes(keyword))
+  ).length / total;
+  const personMatchRatio = sanitizedValues.filter((value) => isLikelyPersonName(value)).length / total;
+  const staffNames = new Set(userStore.map((user) => user.fullName.toLocaleLowerCase('tr-TR')));
+  const knownStaffRatio = lowerValues.filter((value) => staffNames.has(value)).length / total;
+
+  let score = 0;
+
+  switch (field) {
+    case 'id':
+      score += codeRatio * 6;
+      score += uniqueRatio * 4;
+      score += (1 - spaceRatio) * 2;
+      if (numericRatio > 0.5) score += 1.5;
+      if (shortLengthRatio > 0.5) score += 1;
+      if (header.includes('no') || header.includes('numar') || header.includes('kod') || header.includes('ref')) {
+        score += 4;
+      }
+      break;
+    case 'name':
+      score += spaceRatio * 5;
+      score += mediumTextRatio * 2;
+      score += longTextRatio * 2;
+      if (
+        lowerValues.some((value) =>
+          value.includes('proje') || value.includes('site') || value.includes('residence')
+        )
+      ) {
+        score += 2;
+      }
+      if (header.includes('ad') || header.includes('isim') || header.includes('proje')) {
+        score += 4;
+      }
+      break;
+    case 'category':
+      score += categoryMatchRatio * 8;
+      if (header.includes('kategori')) score += 4;
+      if (uniqueRatio <= 0.5) score += 1.5;
+      if (shortLengthRatio > 0.4) score += 1;
+      break;
+    case 'city':
+      score += cityMatchRatio * 10;
+      if (header.includes('sehir') || header.includes('şehir') || header.includes('lokasyon') || header.includes('il')) {
+        score += 4;
+      }
+      if (spaceRatio < 0.3) score += 0.5;
+      break;
+    case 'housingUnits':
+      score += numericRatio * 8;
+      score += housingKeywordRatio * 8;
+      if (shortLengthRatio > 0.4) score += 1.5;
+      if (
+        header.includes('konut') ||
+        header.includes('daire') ||
+        header.includes('adet') ||
+        header.includes('bagimsiz') ||
+        header.includes('bağımsız')
+      ) {
+        score += 4;
+      }
+      break;
+    case 'addedAt':
+      score += dateRatio * 9;
+      if (header.includes('tarih')) score += 2;
+      if (
+        header.includes('eklen') ||
+        header.includes('oluş') ||
+        header.includes('olus') ||
+        header.includes('baslang') ||
+        header.includes('başlang') ||
+        header.includes('ilk')
+      ) {
+        score += 3;
+      }
+      break;
+    case 'updatedAt':
+      score += dateRatio * 9;
+      if (header.includes('tarih')) score += 2;
+      if (header.includes('son') || header.includes('güncel') || header.includes('guncel')) {
+        score += 3;
+      }
+      break;
+    case 'contractor':
+      score += contractorMatchRatio * 10;
+      if (header.includes('yüklen') || header.includes('yuklen') || header.includes('insaat') || header.includes('firma')) {
+        score += 4;
+      }
+      break;
+    case 'mechanical':
+      score += mechanicalMatchRatio * 10;
+      if (header.includes('mekanik') || header.includes('tesisat')) {
+        score += 4;
+      }
+      break;
+    case 'manager':
+      score += personMatchRatio * 8;
+      score += knownStaffRatio * 5;
+      if (
+        header.includes('sorum') ||
+        header.includes('temsil') ||
+        header.includes('yetk') ||
+        header.includes('yonet') ||
+        header.includes('manager') ||
+        header.includes('person')
+      ) {
+        score += 4;
+      }
+      break;
+    case 'channel':
+      score += channelKeywordRatio * 9;
+      if (
+        header.includes('kanal') ||
+        header.includes('baglanti') ||
+        header.includes('bağlantı') ||
+        header.includes('tip')
+      ) {
+        score += 4;
+      }
+      break;
+    case 'channelName':
+      score += dealerNameRatio * 8;
+      if (channelKeywordRatio > 0) score += 2;
+      if (header.includes('bayi') || header.includes('kanal')) {
+        score += 3;
+      }
+      break;
+    case 'salesStatus':
+      score += salesKeywordRatio * 9;
+      if (header.includes('satis') || header.includes('satış') || header.includes('durum') || header.includes('status')) {
+        score += 4;
+      }
+      break;
+    case 'scope':
+      score += scopeKeywordRatio * 7;
+      score += numericRatio * 2;
+      if (
+        header.includes('kapsam') ||
+        header.includes('scope') ||
+        header.includes('icerik') ||
+        header.includes('içerik')
+      ) {
+        score += 4;
+      }
+      break;
+    case 'responsibleInstitution':
+      score += institutionKeywordRatio * 9;
+      if (header.includes('kurum') || header.includes('idare') || header.includes('beled') || header.includes('paydas')) {
+        score += 4;
+      }
+      break;
+    case 'assignedTeam':
+      score += teamKeywordRatio * 9;
+      if (header.includes('ekip') || header.includes('team') || header.includes('grup')) {
+        score += 4;
+      }
+      break;
+    case 'progress':
+      score += progressKeywordRatio * 8;
+      score += longTextRatio * 4;
+      if (header.includes('not') || header.includes('acik') || header.includes('açıkl') || header.includes('ilerleme') || header.includes('durum')) {
+        score += 4;
+      }
+      break;
+    default:
+      break;
+  }
+
+  return score;
+}
+
+function looksLikeDateValue(value) {
+  if (value === undefined || value === null || value === '') return false;
+  const normalized = normalizeDateCell(value);
+  if (!normalized) return false;
+  const year = Number(normalized.slice(0, 4));
+  if (!Number.isFinite(year)) return false;
+  return year >= 1900 && year <= 2100;
+}
+
+function isKnownCity(value) {
+  if (!value) return false;
+  const normalized = String(value)
+    .toLocaleLowerCase('tr-TR')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!normalized) return false;
+  return TURKISH_CITY_NAMES.has(normalized);
+}
+
+function isLikelyPersonName(value) {
+  if (!value) return false;
+  const parts = String(value)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length < 2 || parts.length > 4) return false;
+  let score = 0;
+  parts.forEach((part) => {
+    if (/^[A-ZÇĞİÖŞÜ][a-zçğıöşü'’-]+$/.test(part) || /^[A-ZÇĞİÖŞÜ]+$/.test(part)) {
+      score += 1;
+    }
+  });
+  return score >= parts.length - 1;
 }
 
 function normalizeSearchQuery(value) {
@@ -1741,6 +3445,7 @@ function resetSubmitLabel(form) {
 function resetProjectForm(hide = true) {
   if (!projectForm) return;
   projectForm.reset();
+  applyProjectLocationToForm('', '');
   projectFormMode = null;
   const managerSelect = projectForm.elements.namedItem('manager');
   populateStaffSelect(managerSelect, currentUser?.fullName ?? '');
@@ -1848,6 +3553,7 @@ function openProjectForm(mode, project) {
 
   if (mode === 'create') {
     projectForm.reset();
+    applyProjectLocationToForm('', '');
     const today = new Date().toISOString().slice(0, 10);
     const managerSelect = projectForm.elements.namedItem('manager');
     const defaultManager = currentUser?.fullName ?? '';
@@ -1855,8 +3561,6 @@ function openProjectForm(mode, project) {
     setFormValue(projectForm, 'projectId', '');
     setFormValue(projectForm, 'projectName', '');
     setFormValue(projectForm, 'projectCategory', '');
-    setFormValue(projectForm, 'projectCity', '');
-    setFormValue(projectForm, 'projectDistrict', '');
     setFormValue(projectForm, 'housingUnits', '');
     setFormValue(projectForm, 'addedAt', today);
     setFormValue(projectForm, 'updatedAt', today);
@@ -1876,8 +3580,7 @@ function openProjectForm(mode, project) {
     setFormValue(projectForm, 'projectId', project.id);
     setFormValue(projectForm, 'projectName', project.name);
     setFormValue(projectForm, 'projectCategory', project.category);
-    setFormValue(projectForm, 'projectCity', project.city);
-    setFormValue(projectForm, 'projectDistrict', project.district);
+    applyProjectLocationToForm(project.city, project.district);
     setFormValue(projectForm, 'housingUnits', normalizeHousingUnits(project.housingUnits));
     setFormValue(projectForm, 'addedAt', project.addedAt);
     setFormValue(projectForm, 'updatedAt', project.updatedAt);
@@ -4714,6 +6417,7 @@ function init() {
   setupNavigation();
   setupMapSection();
   setupProjectSelection();
+  setupProjectLocationSelectors();
   setupFirmSelection();
   setupFirmProfileForms();
   setupForms();

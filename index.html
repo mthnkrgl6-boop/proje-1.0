@@ -190,7 +190,19 @@
               </label>
               <label>
                 <span>İl</span>
-                <input type="text" name="projectCity" required />
+                <select name="projectCity" required>
+                  <option value="">İl Seçin</option>
+                </select>
+              </label>
+              <label>
+                <span>İlçe</span>
+                <select name="projectDistrict" required disabled>
+                  <option value="">Önce il seçin</option>
+                </select>
+              </label>
+              <label>
+                <span>Konut Sayısı</span>
+                <input type="number" name="housingUnits" min="0" step="1" inputmode="numeric" />
               </label>
               <label>
                 <span>İlçe</span>
