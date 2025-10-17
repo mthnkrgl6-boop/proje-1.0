@@ -55,6 +55,45 @@ const feedbackTimers = new WeakMap();
 let userModalFeedbackTimer = null;
 let projectImportFeedbackTimer = null;
 
+const coordinateCache = new Map();
+const pendingGeocodeLookups = new Map();
+
+function serializeCoordinateCache() {
+  const serialized = {};
+  coordinateCache.forEach((value, key) => {
+    if (!key) return;
+    const normalized = normalizeCoordinates(value);
+    if (normalized) {
+      serialized[key] = {
+        lat: normalized.lat,
+        lng: normalized.lng,
+        source: value?.source ?? normalized.source ?? 'cache',
+      };
+    } else {
+      serialized[key] = null;
+    }
+  });
+  return serialized;
+}
+
+function restoreCoordinateCache(cache) {
+  coordinateCache.clear();
+  if (!cache || typeof cache !== 'object') return;
+  Object.entries(cache).forEach(([key, value]) => {
+    if (!key) return;
+    const normalized = normalizeCoordinates(value);
+    if (normalized) {
+      coordinateCache.set(key, {
+        lat: normalized.lat,
+        lng: normalized.lng,
+        source: value?.source ?? normalized.source ?? 'cache',
+      });
+    } else if (value === null) {
+      coordinateCache.set(key, null);
+    }
+  });
+}
+
 const ROLE_LABELS = {
   manager: 'Yönetici',
   standard: 'Standart',
@@ -320,6 +359,7 @@ function getAppStateSnapshot() {
     requests: requestStore.map(cloneRequest).filter(Boolean),
     selectedProjectId,
     currentUserId: currentUser?.id ?? null,
+    coordinateCache: serializeCoordinateCache(),
   };
 }
 
@@ -359,6 +399,22 @@ function normalizeProjectRecord(record) {
   ensureProjectCollections(project);
   project.city = sanitizeText(project.city);
   project.district = sanitizeText(project.district);
+  const coordinates = normalizeCoordinates(project.coordinates);
+  if (coordinates) {
+    project.coordinates = { ...coordinates, source: coordinates.source ?? 'saved' };
+  } else {
+    const key = getProjectLocationKey(project);
+    if (key && coordinateCache.has(key)) {
+      const cached = normalizeCoordinates(coordinateCache.get(key));
+      if (cached) {
+        project.coordinates = { ...cached, source: cached.source ?? 'cache' };
+      } else {
+        project.coordinates = null;
+      }
+    } else {
+      project.coordinates = null;
+    }
+  }
   project.category = normalizeProjectCategory(project.category);
   project.housingUnits = normalizeHousingUnits(project.housingUnits);
   project.salesStatus = project.salesStatus || deriveSalesStatus(project);
@@ -378,6 +434,12 @@ function loadPersistedState() {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const data = JSON.parse(raw);
+
+    if (data.coordinateCache) {
+      restoreCoordinateCache(data.coordinateCache);
+    } else {
+      restoreCoordinateCache(null);
+    }
 
     if (Array.isArray(data.users) && data.users.length) {
       userStore.splice(0, userStore.length, ...data.users.map((user) => ({ ...user })));
@@ -412,6 +474,8 @@ function loadPersistedState() {
     } else {
       selectedProjectId = projectStore[0]?.id ?? null;
     }
+
+    applyCachedCoordinatesToProjects();
   } catch (error) {
     console.error('State load failed', error);
   }
@@ -734,6 +798,18 @@ function resolveProjectField(header) {
 function sanitizeText(value) {
   if (value === undefined || value === null) return '';
   return String(value).trim();
+}
+
+function normalizeCoordinates(value) {
+  if (!value || typeof value !== 'object') return null;
+  const lat = Number(value.lat ?? value.latitude ?? value.y);
+  const lng = Number(value.lng ?? value.lon ?? value.longitude ?? value.x);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const normalized = { lat, lng };
+  if (value.source) {
+    normalized.source = value.source;
+  }
+  return normalized;
 }
 
 function normalizeProjectCategory(value) {
@@ -1902,6 +1978,107 @@ function normalizeCityKey(city) {
   return upper.replace(/\s+/g, ' ').trim().replace(/\s+(İLİ|MERKEZ)$/u, '');
 }
 
+function getProjectLocationKey(project) {
+  if (!project || typeof project !== 'object') return '';
+  const city = sanitizeText(project.city);
+  const district = sanitizeText(project.district);
+  const parts = [];
+  if (district) parts.push(district);
+  if (city) parts.push(city);
+  if (!parts.length) return '';
+  return normalizeCityKey(parts.join(' '));
+}
+
+function applyCoordinatesToProjects(locationKey, coordinates, source = 'geocode') {
+  if (!locationKey) return false;
+  const normalized = normalizeCoordinates(coordinates);
+  if (!normalized) return false;
+  const entry = { lat: normalized.lat, lng: normalized.lng, source };
+  coordinateCache.set(locationKey, entry);
+  let updated = false;
+  projectStore.forEach((project) => {
+    if (getProjectLocationKey(project) === locationKey) {
+      project.coordinates = { ...entry };
+      updated = true;
+    }
+  });
+  return updated;
+}
+
+function queueProjectGeocode(project) {
+  if (!project || typeof window === 'undefined' || typeof window.fetch !== 'function') return;
+  const locationKey = getProjectLocationKey(project);
+  if (!locationKey) return;
+  if (pendingGeocodeLookups.has(locationKey)) return;
+  if (coordinateCache.has(locationKey)) return;
+
+  const district = sanitizeText(project.district);
+  const city = sanitizeText(project.city);
+  const queryParts = [];
+  if (district) queryParts.push(district);
+  if (city && !district.toLocaleUpperCase('tr-TR').includes(city.toLocaleUpperCase('tr-TR'))) {
+    queryParts.push(city);
+  }
+  queryParts.push('Türkiye');
+  const query = encodeURIComponent(queryParts.join(' '));
+  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=tr&countrycodes=tr&q=${query}`;
+
+  const lookup = window
+    .fetch(url, {
+      headers: {
+        Accept: 'application/json',
+      },
+    })
+    .then((response) => {
+      if (!response.ok) return null;
+      return response.json();
+    })
+    .then((data) => {
+      if (!Array.isArray(data) || !data.length) {
+        coordinateCache.set(locationKey, null);
+        return;
+      }
+      const [result] = data;
+      const lat = Number(result?.lat);
+      const lng = Number(result?.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        coordinateCache.set(locationKey, null);
+        return;
+      }
+      const updated = applyCoordinatesToProjects(locationKey, { lat, lng }, 'geocode');
+      if (updated) {
+        schedulePersistState();
+        renderProjectMap();
+      }
+    })
+    .catch((error) => {
+      console.error('District geocode failed', error);
+      coordinateCache.set(locationKey, null);
+    })
+    .finally(() => {
+      pendingGeocodeLookups.delete(locationKey);
+    });
+
+  pendingGeocodeLookups.set(locationKey, lookup);
+}
+
+function applyCachedCoordinatesToProjects() {
+  projectStore.forEach((project) => {
+    if (!project) return;
+    const existing = normalizeCoordinates(project.coordinates);
+    if (existing) {
+      project.coordinates = { ...existing, source: existing.source ?? 'saved' };
+      return;
+    }
+    const key = getProjectLocationKey(project);
+    if (!key) return;
+    if (!coordinateCache.has(key)) return;
+    const cached = normalizeCoordinates(coordinateCache.get(key));
+    if (!cached) return;
+    project.coordinates = { ...cached, source: cached.source ?? 'cache' };
+  });
+}
+
 function findCityCoordinates(city) {
   const key = normalizeCityKey(city);
   if (!key) return null;
@@ -1927,6 +2104,17 @@ function findCityCoordinates(city) {
 
 function findProjectCoordinates(project) {
   if (!project) return null;
+  const stored = normalizeCoordinates(project.coordinates);
+  if (stored) {
+    return stored;
+  }
+  const cacheKey = getProjectLocationKey(project);
+  if (cacheKey && coordinateCache.has(cacheKey)) {
+    const cached = normalizeCoordinates(coordinateCache.get(cacheKey));
+    if (cached) {
+      return cached;
+    }
+  }
   const city = sanitizeText(project.city);
   const district = sanitizeText(project.district);
   if (district) {
@@ -2059,7 +2247,10 @@ function renderProjectMap() {
     .map((project, index) => {
       const coordinates = findProjectCoordinates(project);
       const position = toLatLng(coordinates);
-      if (!position) return null;
+      if (!position) {
+        queueProjectGeocode(project);
+        return null;
+      }
       const key = project.id?.trim() || `map-${index}`;
       return { project, position, markerKey: key };
     })
@@ -2537,6 +2728,7 @@ function applyImportedProjectRows(rows) {
 
     const existing = getProject(payload.id);
     if (existing) {
+      const previousKey = getProjectLocationKey(existing);
       existing.name = payload.name;
       existing.category = payload.category;
       existing.city = payload.city;
@@ -2558,6 +2750,10 @@ function applyImportedProjectRows(rows) {
       }
       ensureProjectCollections(existing);
       existing.salesStatus = deriveSalesStatus(existing);
+      const nextKey = getProjectLocationKey(existing);
+      if (previousKey !== nextKey) {
+        existing.coordinates = null;
+      }
       updated += 1;
       trackProcessedId(existing.id);
     } else {
@@ -2567,6 +2763,7 @@ function applyImportedProjectRows(rows) {
         category: payload.category,
         city: payload.city,
         district: payload.district,
+        coordinates: null,
         housingUnits: payload.housingUnits,
         addedAt: payload.addedAt,
         updatedAt: payload.updatedAt,
@@ -2622,6 +2819,7 @@ function applyImportedProjectRows(rows) {
   }
 
   populateProjectSelector();
+  applyCachedCoordinatesToProjects();
   const searchValue = projectSearch?.value ?? '';
   renderProjectTable(searchValue);
 
@@ -3441,6 +3639,7 @@ function setupForms() {
         window.alert('Bu proje kodu zaten kullanılıyor.');
         return;
       }
+      const previousLocationKey = getProjectLocationKey(project);
       project.id = projectId;
       project.name = payload.name;
       project.category = payload.category;
@@ -3459,6 +3658,10 @@ function setupForms() {
       project.responsibleInstitution = payload.responsibleInstitution;
       project.assignedTeam = payload.assignedTeam;
       project.progress = payload.progress;
+      const nextLocationKey = getProjectLocationKey(project);
+      if (previousLocationKey !== nextLocationKey) {
+        project.coordinates = null;
+      }
       selectedProjectId = project.id;
     } else {
       if (getProject(projectId)) {
@@ -3473,6 +3676,7 @@ function setupForms() {
         category: payload.category,
         city: payload.city,
         district: payload.district,
+        coordinates: null,
         housingUnits: payload.housingUnits,
         name: payload.name,
         contractor: payload.contractor,
