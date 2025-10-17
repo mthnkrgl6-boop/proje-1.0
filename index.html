@@ -14,7 +14,6 @@
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-sA+4dM07S4XMX5ZCalIAvzk1lIo0NGdisM8Iky3UczU="
     crossorigin=""
   />
 </head>
@@ -646,24 +645,10 @@
         </div>
       </header>
       <div class="map-controls">
-        <form class="map-key-form" id="mapKeyForm">
-          <label>
-            <span>Google Maps API Anahtarı</span>
-            <input
-              type="text"
-              id="mapKeyInput"
-              name="googleMapsKey"
-              placeholder="AIza..."
-              autocomplete="off"
-              data-no-uppercase="true"
-            />
-          </label>
-          <div class="map-key-actions">
-            <button type="submit" class="primary-btn">Anahtarı Kaydet</button>
-            <button type="button" class="ghost-btn" id="clearMapKeyBtn">Anahtarı Kaldır</button>
-          </div>
-          <p class="form-feedback" data-role="feedback" id="mapKeyFeedback"></p>
-        </form>
+        <div class="map-controls__note">
+          <strong>Streets Map Görünümü</strong>
+          <p>Harita OpenStreetMap verileriyle otomatik olarak yüklenir, ek anahtar gerektirmez.</p>
+        </div>
       </div>
       <div class="map-layout">
         <div class="map-wrapper">
@@ -672,7 +657,6 @@
             class="map-canvas"
             role="application"
             aria-label="Proje Haritası"
-            data-google-maps-key=""
           ></div>
         </div>
         <aside class="map-sidebar">
@@ -776,7 +760,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="https://unpkg.com/@googlemaps/js-api-loader@1.16.1/dist/index.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="app.js"></script>
 </body>
 </html>

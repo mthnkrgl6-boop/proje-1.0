@@ -1316,41 +1316,28 @@ form .full-width {
   margin-bottom: 1.5rem;
 }
 
-.map-key-form {
+.map-controls__note {
   background: var(--white);
   border-radius: 1.5rem;
   border: 1px solid var(--border);
   box-shadow: 0 18px 26px rgba(31, 60, 136, 0.08);
-  padding: 1.25rem;
+  padding: 1.1rem 1.35rem;
   display: grid;
-  gap: 0.9rem;
+  gap: 0.45rem;
   max-width: 520px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
-.map-key-form label {
-  display: grid;
-  gap: 0.4rem;
+.map-controls__note strong {
   color: var(--navy);
-  font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 1rem;
+  margin-bottom: 0.15rem;
 }
 
-.map-key-form input {
-  border: 1px solid var(--border);
-  border-radius: 0.8rem;
-  padding: 0.65rem 0.85rem;
-  font-size: 0.95rem;
-}
-
-.map-key-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.map-key-form .form-feedback {
+.map-controls__note p {
   margin: 0;
-  min-height: 1.25rem;
 }
 
 .map-wrapper {
@@ -1370,11 +1357,13 @@ form .full-width {
   min-height: 480px;
   border-radius: 1.2rem;
   overflow: hidden;
+  position: relative;
 }
 
-.map-canvas .gm-style {
-  border-radius: 1.2rem;
+.map-canvas .leaflet-control-container .leaflet-control {
+  border-radius: 0.8rem;
   overflow: hidden;
+  box-shadow: 0 10px 18px rgba(31, 60, 136, 0.12);
 }
 
 .map-sidebar {
@@ -1568,14 +1557,6 @@ form .full-width {
 
   .map-controls {
     margin-bottom: 1rem;
-  }
-
-  .map-key-form {
-    width: 100%;
-  }
-
-  .map-key-actions {
-    justify-content: flex-start;
   }
 
   .map-layout {
