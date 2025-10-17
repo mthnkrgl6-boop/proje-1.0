@@ -26,6 +26,15 @@ body {
   min-height: 100vh;
 }
 
+input[type='text'],
+input[type='search'],
+input[type='email'],
+input[type='url'],
+input[type='tel'],
+textarea {
+  text-transform: uppercase;
+}
+
 body.is-authenticated .auth-screen {
   display: none;
 }
@@ -1195,9 +1204,11 @@ form .full-width {
   position: fixed;
   inset: 0;
   background: rgba(12, 24, 53, 0.55);
-  display: grid;
-  place-items: center;
-  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  overflow-y: auto;
 }
 
 .modal__content {
@@ -1209,6 +1220,9 @@ form .full-width {
   display: grid;
   gap: 1.2rem;
   position: relative;
+  margin: 0 auto;
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
 }
 
 .modal__content--wide {
@@ -1291,6 +1305,217 @@ form .full-width {
   font-size: 0.85rem;
 }
 
+.map-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2.75fr) minmax(280px, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.map-controls {
+  margin-bottom: 1.5rem;
+}
+
+.map-controls__note {
+  background: var(--white);
+  border-radius: 1.5rem;
+  border: 1px solid var(--border);
+  box-shadow: 0 18px 26px rgba(31, 60, 136, 0.08);
+  padding: 1.1rem 1.35rem;
+  display: grid;
+  gap: 0.45rem;
+  max-width: 520px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.map-controls__note strong {
+  color: var(--navy);
+  font-size: 1rem;
+  margin-bottom: 0.15rem;
+}
+
+.map-controls__note p {
+  margin: 0;
+}
+
+.map-wrapper {
+  background: var(--white);
+  border-radius: 1.5rem;
+  border: 1px solid var(--border);
+  box-shadow: 0 18px 26px rgba(31, 60, 136, 0.08);
+  padding: 1.25rem;
+  min-height: 640px;
+  display: flex;
+}
+
+.map-canvas {
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  min-height: 600px;
+  border-radius: 1.2rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.map-canvas .leaflet-control-container .leaflet-control {
+  border-radius: 0.8rem;
+  overflow: hidden;
+  box-shadow: 0 10px 18px rgba(31, 60, 136, 0.12);
+}
+
+.map-sidebar {
+  background: var(--white);
+  border-radius: 1.5rem;
+  border: 1px solid var(--border);
+  box-shadow: 0 18px 26px rgba(31, 60, 136, 0.08);
+  padding: 1.25rem;
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+  max-height: 100%;
+}
+
+.map-sidebar h3 {
+  color: var(--navy);
+  font-size: 1.05rem;
+}
+
+.map-project-list {
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.map-project-list li button {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: rgba(31, 60, 136, 0.04);
+  border-radius: 0.8rem;
+  padding: 0.6rem 0.75rem;
+  display: grid;
+  gap: 0.3rem;
+  cursor: pointer;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+.map-project-list li button:hover,
+.map-project-list li button:focus {
+  border-color: var(--navy);
+  box-shadow: 0 8px 14px rgba(31, 60, 136, 0.15);
+  outline: none;
+}
+
+.map-project__name {
+  font-weight: 600;
+  color: var(--navy);
+  text-transform: none;
+}
+
+.map-project__meta {
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-transform: none;
+}
+
+.map-popup {
+  font-size: 0.85rem;
+  line-height: 1.4;
+  text-transform: none;
+}
+
+.map-popup strong {
+  display: block;
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+  color: var(--navy);
+}
+
+.map-popup span {
+  display: block;
+  text-transform: none;
+}
+
+.report-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.report-card {
+  background: var(--white);
+  border-radius: 1.2rem;
+  border: 1px solid var(--border);
+  box-shadow: 0 18px 26px rgba(31, 60, 136, 0.08);
+  padding: 1.4rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.report-card__metric {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.report-panels {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.report-panel {
+  background: var(--white);
+  border-radius: 1.2rem;
+  border: 1px solid var(--border);
+  box-shadow: 0 18px 26px rgba(31, 60, 136, 0.08);
+  padding: 1.25rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.report-panel h3 {
+  color: var(--navy);
+  font-size: 1.05rem;
+}
+
+.report-list {
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.report-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  padding: 0.55rem 0.75rem;
+  background: rgba(31, 60, 136, 0.04);
+}
+
+.report-list__label {
+  font-weight: 600;
+  color: var(--navy);
+  text-transform: none;
+}
+
+.report-list__value {
+  font-size: 0.9rem;
+  color: var(--muted);
+  text-transform: none;
+  text-align: right;
+}
+
 .muted {
   color: var(--muted);
   font-size: 0.9rem;
@@ -1328,6 +1553,22 @@ form .full-width {
 
   main {
     padding: 1.5rem;
+  }
+
+  .map-controls {
+    margin-bottom: 1rem;
+  }
+
+  .map-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .map-wrapper {
+    min-height: 420px;
+  }
+
+  .map-project-list {
+    max-height: none;
   }
 }
 

@@ -16,6 +16,12 @@ const constructionTableBody = document.getElementById('constructionTableBody');
 const mechanicalTableBody = document.getElementById('mechanicalTableBody');
 const assignmentTableBody = document.getElementById('assignmentTableBody');
 const requestGrid = document.getElementById('requestGrid');
+const mapContainer = document.getElementById('projectMap');
+const mapProjectList = document.getElementById('mapProjectList');
+const reportSummaryCards = document.getElementById('reportSummaryCards');
+const reportCategoryList = document.getElementById('reportCategoryList');
+const reportChannelList = document.getElementById('reportChannelList');
+const reportCityList = document.getElementById('reportCityList');
 const projectInfo = document.getElementById('projectInfo');
 const productTableBody = document.getElementById('productTableBody');
 const offerTotal = document.getElementById('offerTotal');
@@ -48,6 +54,45 @@ const projectImportFeedback = document.getElementById('projectImportFeedback');
 const feedbackTimers = new WeakMap();
 let userModalFeedbackTimer = null;
 let projectImportFeedbackTimer = null;
+
+const coordinateCache = new Map();
+const pendingGeocodeLookups = new Map();
+
+function serializeCoordinateCache() {
+  const serialized = {};
+  coordinateCache.forEach((value, key) => {
+    if (!key) return;
+    const normalized = normalizeCoordinates(value);
+    if (normalized) {
+      serialized[key] = {
+        lat: normalized.lat,
+        lng: normalized.lng,
+        source: value?.source ?? normalized.source ?? 'cache',
+      };
+    } else {
+      serialized[key] = null;
+    }
+  });
+  return serialized;
+}
+
+function restoreCoordinateCache(cache) {
+  coordinateCache.clear();
+  if (!cache || typeof cache !== 'object') return;
+  Object.entries(cache).forEach(([key, value]) => {
+    if (!key) return;
+    const normalized = normalizeCoordinates(value);
+    if (normalized) {
+      coordinateCache.set(key, {
+        lat: normalized.lat,
+        lng: normalized.lng,
+        source: value?.source ?? normalized.source ?? 'cache',
+      });
+    } else if (value === null) {
+      coordinateCache.set(key, null);
+    }
+  });
+}
 
 const ROLE_LABELS = {
   manager: 'Yönetici',
@@ -131,6 +176,1318 @@ const firmConfig = {
 
 const requestStore = [];
 
+const numberFormatter = new Intl.NumberFormat('tr-TR');
+
+const MAP_DEFAULT_CENTER = { lat: 39.0, lng: 35.0 };
+const MAP_DEFAULT_ZOOM = 6;
+
+const TURKEY_CITY_COORDINATES = {
+  ADANA: [37.0007, 35.3213],
+  ADIYAMAN: [37.7648, 38.2786],
+  AFYONKARAHİSAR: [38.7569, 30.5387],
+  AĞRI: [39.7191, 43.0503],
+  AKSARAY: [38.3687, 34.037],
+  AMASYA: [40.65, 35.8333],
+  ANKARA: [39.9208, 32.8541],
+  ANTALYA: [36.8969, 30.7133],
+  ARDAHAN: [41.1105, 42.7022],
+  ARTVİN: [41.1828, 41.8183],
+  AYDIN: [37.845, 27.845],
+  BALIKESİR: [39.6484, 27.8826],
+  BARTIN: [41.6358, 32.3375],
+  BATMAN: [37.8812, 41.1351],
+  BAYBURT: [40.2552, 40.2249],
+  BİLECİK: [40.0567, 30.0665],
+  BİNGÖL: [38.885, 40.4983],
+  BİTLİS: [38.4015, 42.1078],
+  BOLU: [40.732, 31.6116],
+  BURDUR: [37.7203, 30.2903],
+  BURSA: [40.195, 29.06],
+  ÇANAKKALE: [40.1467, 26.4064],
+  ÇANKIRI: [40.6013, 33.6134],
+  ÇORUM: [40.5506, 34.9556],
+  DENİZLİ: [37.7765, 29.0864],
+  DİYARBAKIR: [37.9086, 40.2362],
+  DÜZCE: [40.8438, 31.1565],
+  EDİRNE: [41.6764, 26.555],
+  ELAZIĞ: [38.6753, 39.222],
+  ERZİNCAN: [39.7505, 39.4928],
+  ERZURUM: [39.9043, 41.2679],
+  ESKİŞEHİR: [39.7767, 30.5206],
+  GAZİANTEP: [37.0662, 37.3833],
+  GİRESUN: [40.9128, 38.3895],
+  GÜMÜŞHANE: [40.4603, 39.4818],
+  HAKKARİ: [37.5744, 43.7408],
+  HATAY: [36.2028, 36.1609],
+  IĞDIR: [39.9237, 44.045],
+  ISPARTA: [37.7648, 30.5567],
+  İSTANBUL: [41.0082, 28.9784],
+  İZMİR: [38.4237, 27.1428],
+  KAHRAMANMARAŞ: [37.581, 36.9371],
+  KARABÜK: [41.2061, 32.6204],
+  KARAMAN: [37.1759, 33.2287],
+  KARS: [40.6013, 43.0949],
+  KASTAMONU: [41.3887, 33.7827],
+  KAYSERİ: [38.7312, 35.4787],
+  KIRIKKALE: [39.8468, 33.5153],
+  KIRKLARELİ: [41.7333, 27.2167],
+  KIRŞEHİR: [39.1458, 34.163],
+  KİLİS: [36.7184, 37.1212],
+  KOCAELİ: [40.8533, 29.8815],
+  KONYA: [37.8715, 32.4846],
+  KÜTAHYA: [39.4242, 29.9833],
+  MALATYA: [38.3552, 38.3333],
+  MANİSA: [38.6191, 27.4289],
+  MARDİN: [37.3129, 40.7339],
+  MERSİN: [36.8121, 34.6415],
+  MUĞLA: [37.2153, 28.3636],
+  MUŞ: [38.7433, 41.5065],
+  NEVŞEHİR: [38.6244, 34.7239],
+  NİĞDE: [37.9699, 34.6766],
+  ORDU: [40.9862, 37.8797],
+  OSMANİYE: [37.068, 36.261],
+  RİZE: [41.0201, 40.5234],
+  SAKARYA: [40.7569, 30.3781],
+  SAMSUN: [41.2867, 36.33],
+  SİİRT: [37.9333, 41.95],
+  SİNOP: [42.0264, 35.1552],
+  SİVAS: [39.7477, 37.0179],
+  ŞANLIURFA: [37.1674, 38.7955],
+  ŞIRNAK: [37.522, 42.4543],
+  TEKİRDAĞ: [40.978, 27.511],
+  TOKAT: [40.3167, 36.55],
+  TRABZON: [41.0015, 39.7178],
+  TUNCELİ: [39.1069, 39.548],
+  UŞAK: [38.6823, 29.4082],
+  VAN: [38.5012, 43.4089],
+  YALOVA: [40.655, 29.2769],
+  YOZGAT: [39.8206, 34.804],
+  ZONGULDAK: [41.4564, 31.7987],
+};
+
+const TURKISH_PROVINCES = [
+  'Adana',
+  'Adıyaman',
+  'Afyonkarahisar',
+  'Ağrı',
+  'Aksaray',
+  'Amasya',
+  'Ankara',
+  'Antalya',
+  'Ardahan',
+  'Artvin',
+  'Aydın',
+  'Balıkesir',
+  'Bartın',
+  'Batman',
+  'Bayburt',
+  'Bilecik',
+  'Bingöl',
+  'Bitlis',
+  'Bolu',
+  'Burdur',
+  'Bursa',
+  'Çanakkale',
+  'Çankırı',
+  'Çorum',
+  'Denizli',
+  'Diyarbakır',
+  'Düzce',
+  'Edirne',
+  'Elazığ',
+  'Erzincan',
+  'Erzurum',
+  'Eskişehir',
+  'Gaziantep',
+  'Giresun',
+  'Gümüşhane',
+  'Hakkâri',
+  'Hatay',
+  'Iğdır',
+  'Isparta',
+  'İstanbul',
+  'İzmir',
+  'Kahramanmaraş',
+  'Karabük',
+  'Karaman',
+  'Kars',
+  'Kastamonu',
+  'Kayseri',
+  'Kırıkkale',
+  'Kırklareli',
+  'Kırşehir',
+  'Kilis',
+  'Kocaeli',
+  'Konya',
+  'Kütahya',
+  'Malatya',
+  'Manisa',
+  'Mardin',
+  'Mersin',
+  'Muğla',
+  'Muş',
+  'Nevşehir',
+  'Niğde',
+  'Ordu',
+  'Osmaniye',
+  'Rize',
+  'Sakarya',
+  'Samsun',
+  'Siirt',
+  'Sinop',
+  'Sivas',
+  'Şanlıurfa',
+  'Şırnak',
+  'Tekirdağ',
+  'Tokat',
+  'Trabzon',
+  'Tunceli',
+  'Uşak',
+  'Van',
+  'Yalova',
+  'Yozgat',
+  'Zonguldak',
+];
+
+const TURKISH_DISTRICTS = {
+  ADANA: [
+    'Aladağ',
+    'Ceyhan',
+    'Çukurova',
+    'Feke',
+    'İmamoğlu',
+    'Karaisalı',
+    'Karataş',
+    'Kozan',
+    'Pozantı',
+    'Saimbeyli',
+    'Sarıçam',
+    'Seyhan',
+    'Tufanbeyli',
+    'Yumurtalık',
+    'Yüreğir',
+  ],
+  ADIYAMAN: [
+    'Adıyaman Merkez',
+    'Besni',
+    'Çelikhan',
+    'Gerger',
+    'Gölbaşı',
+    'Kahta',
+    'Samsat',
+    'Sincik',
+    'Tut',
+  ],
+  AFYONKARAHİSAR: [
+    'Afyonkarahisar Merkez',
+    'Başmakçı',
+    'Bayat',
+    'Bolvadin',
+    'Çay',
+    'Çobanlar',
+    'Dazkırı',
+    'Dinar',
+    'Emirdağ',
+    'Evciler',
+    'Hocalar',
+    'İhsaniye',
+    'İscehisar',
+    'Kızılören',
+    'Sandıklı',
+    'Sinanpaşa',
+    'Sultandağı',
+    'Şuhut',
+  ],
+  AĞRI: [
+    'Ağrı Merkez',
+    'Diyadin',
+    'Doğubayazıt',
+    'Eleşkirt',
+    'Hamur',
+    'Patnos',
+    'Taşlıçay',
+    'Tutak',
+  ],
+  AKSARAY: [
+    'Ağaçören',
+    'Aksaray Merkez',
+    'Eskil',
+    'Gülağaç',
+    'Güzelyurt',
+    'Ortaköy',
+    'Sarıyahşi',
+    'Sultanhanı',
+  ],
+  AMASYA: [
+    'Amasya Merkez',
+    'Göynücek',
+    'Gümüşhacıköy',
+    'Hamamözü',
+    'Merzifon',
+    'Suluova',
+    'Taşova',
+  ],
+  ANKARA: [
+    'Akyurt',
+    'Altındağ',
+    'Ayaş',
+    'Bala',
+    'Beypazarı',
+    'Çamlıdere',
+    'Çankaya',
+    'Çubuk',
+    'Elmadağ',
+    'Etimesgut',
+    'Evren',
+    'Gölbaşı',
+    'Güdül',
+    'Haymana',
+    'Kalecik',
+    'Kahramankazan',
+    'Keçiören',
+    'Kızılcahamam',
+    'Mamak',
+    'Nallıhan',
+    'Polatlı',
+    'Pursaklar',
+    'Sincan',
+    'Şereflikoçhisar',
+    'Yenimahalle',
+  ],
+  ANTALYA: [
+    'Akseki',
+    'Aksu',
+    'Alanya',
+    'Demre',
+    'Döşemealtı',
+    'Elmalı',
+    'Finike',
+    'Gazipaşa',
+    'Gündoğmuş',
+    'İbradı',
+    'Kaş',
+    'Kemer',
+    'Kepez',
+    'Konyaaltı',
+    'Korkuteli',
+    'Kumluca',
+    'Manavgat',
+    'Muratpaşa',
+    'Serik',
+  ],
+  ARDAHAN: [
+    'Ardahan Merkez',
+    'Çıldır',
+    'Damal',
+    'Göle',
+    'Hanak',
+    'Posof',
+  ],
+  ARTVİN: [
+    'Arhavi',
+    'Artvin Merkez',
+    'Borçka',
+    'Hopa',
+    'Kemalpaşa',
+    'Murgul',
+    'Şavşat',
+    'Yusufeli',
+  ],
+  AYDIN: [
+    'Bozdoğan',
+    'Buharkent',
+    'Çine',
+    'Didim',
+    'Efeler',
+    'Germencik',
+    'İncirliova',
+    'Karacasu',
+    'Karpuzlu',
+    'Koçarlı',
+    'Köşk',
+    'Kuşadası',
+    'Kuyucak',
+    'Nazilli',
+    'Söke',
+    'Sultanhisar',
+    'Yenipazar',
+  ],
+  BALIKESİR: [
+    'Altıeylül',
+    'Ayvalık',
+    'Balya',
+    'Bandırma',
+    'Bigadiç',
+    'Burhaniye',
+    'Dursunbey',
+    'Edremit',
+    'Erdek',
+    'Gömeç',
+    'Gönen',
+    'Havran',
+    'İvrindi',
+    'Karesi',
+    'Kepsut',
+    'Manyas',
+    'Marmara',
+    'Savaştepe',
+    'Sındırgı',
+    'Susurluk',
+  ],
+  BARTIN: [
+    'Amasra',
+    'Bartın Merkez',
+    'Kurucaşile',
+    'Ulus',
+  ],
+  BATMAN: [
+    'Batman Merkez',
+    'Beşiri',
+    'Gercüş',
+    'Hasankeyf',
+    'Kozluk',
+    'Sason',
+  ],
+  BAYBURT: [
+    'Aydıntepe',
+    'Bayburt Merkez',
+    'Demirözü',
+  ],
+  BİLECİK: [
+    'Bilecik Merkez',
+    'Bozüyük',
+    'Gölpazarı',
+    'İnhisar',
+    'Osmaneli',
+    'Pazaryeri',
+    'Söğüt',
+    'Yenipazar',
+  ],
+  BİNGÖL: [
+    'Adaklı',
+    'Bingöl Merkez',
+    'Genç',
+    'Karlıova',
+    'Kiğı',
+    'Solhan',
+    'Yayladere',
+    'Yedisu',
+  ],
+  BİTLİS: [
+    'Adilcevaz',
+    'Ahlat',
+    'Bitlis Merkez',
+    'Güroymak',
+    'Hizan',
+    'Mutki',
+    'Tatvan',
+  ],
+  BOLU: [
+    'Bolu Merkez',
+    'Dörtdivan',
+    'Gerede',
+    'Göynük',
+    'Kıbrıscık',
+    'Mengen',
+    'Mudurnu',
+    'Seben',
+    'Yeniçağa',
+  ],
+  BURDUR: [
+    'Ağlasun',
+    'Altınyayla',
+    'Bucak',
+    'Burdur Merkez',
+    'Çavdır',
+    'Çeltikçi',
+    'Gölhisar',
+    'Karamanlı',
+    'Kemer',
+    'Tefenni',
+    'Yeşilova',
+  ],
+  BURSA: [
+    'Büyükorhan',
+    'Gemlik',
+    'Gürsu',
+    'Harmancık',
+    'İnegöl',
+    'İznik',
+    'Karacabey',
+    'Keles',
+    'Kestel',
+    'Mudanya',
+    'Mustafakemalpaşa',
+    'Nilüfer',
+    'Orhaneli',
+    'Orhangazi',
+    'Osmangazi',
+    'Yenişehir',
+    'Yıldırım',
+  ],
+  ÇANAKKALE: [
+    'Ayvacık',
+    'Bayramiç',
+    'Biga',
+    'Bozcaada',
+    'Çan',
+    'Çanakkale Merkez',
+    'Eceabat',
+    'Ezine',
+    'Gelibolu',
+    'Gökçeada',
+    'Lapseki',
+    'Yenice',
+  ],
+  ÇANKIRI: [
+    'Atkaracalar',
+    'Bayramören',
+    'Çankırı Merkez',
+    'Çerkeş',
+    'Eldivan',
+    'Ilgaz',
+    'Kızılırmak',
+    'Korgun',
+    'Kurşunlu',
+    'Orta',
+    'Şabanözü',
+    'Yapraklı',
+  ],
+  ÇORUM: [
+    'Alaca',
+    'Bayat',
+    'Boğazkale',
+    'Çorum Merkez',
+    'Dodurga',
+    'İskilip',
+    'Kargı',
+    'Laçin',
+    'Mecitözü',
+    'Oğuzlar',
+    'Ortaköy',
+    'Osmancık',
+    'Sungurlu',
+    'Uğurludağ',
+  ],
+  DENİZLİ: [
+    'Acıpayam',
+    'Babadağ',
+    'Baklan',
+    'Bekilli',
+    'Beyağaç',
+    'Bozkurt',
+    'Buldan',
+    'Çal',
+    'Çameli',
+    'Çardak',
+    'Çivril',
+    'Güney',
+    'Honaz',
+    'Kale',
+    'Merkezefendi',
+    'Pamukkale',
+    'Sarayköy',
+    'Serinhisar',
+    'Tavas',
+  ],
+  DİYARBAKIR: [
+    'Bağlar',
+    'Bismil',
+    'Çermik',
+    'Çınar',
+    'Çüngüş',
+    'Dicle',
+    'Eğil',
+    'Ergani',
+    'Hani',
+    'Hazro',
+    'Kayapınar',
+    'Kocaköy',
+    'Kulp',
+    'Lice',
+    'Silvan',
+    'Sur',
+    'Yenişehir',
+  ],
+  DÜZCE: [
+    'Akçakoca',
+    'Cumayeri',
+    'Çilimli',
+    'Düzce Merkez',
+    'Gölyaka',
+    'Gümüşova',
+    'Kaynaşlı',
+    'Yığılca',
+  ],
+  EDİRNE: [
+    'Edirne Merkez',
+    'Enez',
+    'Havsa',
+    'İpsala',
+    'Keşan',
+    'Lalapaşa',
+    'Meriç',
+    'Süloğlu',
+    'Uzunköprü',
+  ],
+  ELAZIĞ: [
+    'Ağın',
+    'Alacakaya',
+    'Arıcak',
+    'Baskil',
+    'Elazığ Merkez',
+    'Karakoçan',
+    'Keban',
+    'Kovancılar',
+    'Maden',
+    'Palu',
+    'Sivrice',
+  ],
+  ERZİNCAN: [
+    'Çayırlı',
+    'Erzincan Merkez',
+    'İliç',
+    'Kemah',
+    'Kemaliye',
+    'Otlukbeli',
+    'Refahiye',
+    'Tercan',
+    'Üzümlü',
+  ],
+  ERZURUM: [
+    'Aşkale',
+    'Aziziye',
+    'Çat',
+    'Hınıs',
+    'Horasan',
+    'İspir',
+    'Karaçoban',
+    'Karayazı',
+    'Köprüköy',
+    'Narman',
+    'Oltu',
+    'Olur',
+    'Palandöken',
+    'Pasinler',
+    'Pazaryolu',
+    'Şenkaya',
+    'Tekman',
+    'Tortum',
+    'Uzundere',
+    'Yakutiye',
+  ],
+  ESKİŞEHİR: [
+    'Alpu',
+    'Beylikova',
+    'Çifteler',
+    'Günyüzü',
+    'Han',
+    'İnönü',
+    'Mahmudiye',
+    'Mihalgazi',
+    'Mihalıççık',
+    'Odunpazarı',
+    'Sarıcakaya',
+    'Seyitgazi',
+    'Sivrihisar',
+    'Tepebaşı',
+  ],
+  GAZİANTEP: [
+    'Araban',
+    'İslahiye',
+    'Karkamış',
+    'Nizip',
+    'Nurdağı',
+    'Oğuzeli',
+    'Şahinbey',
+    'Şehitkamil',
+    'Yavuzeli',
+  ],
+  GİRESUN: [
+    'Alucra',
+    'Bulancak',
+    'Çamoluk',
+    'Çanakçı',
+    'Dereli',
+    'Doğankent',
+    'Espiye',
+    'Eynesil',
+    'Giresun Merkez',
+    'Görele',
+    'Güce',
+    'Keşap',
+    'Piraziz',
+    'Şebinkarahisar',
+    'Tirebolu',
+    'Yağlıdere',
+  ],
+  GÜMÜŞHANE: [
+    'Gümüşhane Merkez',
+    'Kelkit',
+    'Köse',
+    'Kürtün',
+    'Şiran',
+    'Torul',
+  ],
+  HAKKÂRİ: [
+    'Çukurca',
+    'Derecik',
+    'Hakkâri Merkez',
+    'Şemdinli',
+    'Yüksekova',
+  ],
+  HATAY: [
+    'Altınözü',
+    'Antakya',
+    'Arsuz',
+    'Belen',
+    'Defne',
+    'Dörtyol',
+    'Erzin',
+    'Hassa',
+    'İskenderun',
+    'Kırıkhan',
+    'Kumlu',
+    'Payas',
+    'Reyhanlı',
+    'Samandağ',
+    'Yayladağı',
+  ],
+  IĞDIR: [
+    'Aralık',
+    'Iğdır Merkez',
+    'Karakoyunlu',
+    'Tuzluca',
+  ],
+  ISPARTA: [
+    'Aksu',
+    'Atabey',
+    'Eğirdir',
+    'Gelendost',
+    'Gönen',
+    'Isparta Merkez',
+    'Keçiborlu',
+    'Senirkent',
+    'Sütçüler',
+    'Şarkikaraağaç',
+    'Uluborlu',
+    'Yalvaç',
+    'Yenişarbademli',
+  ],
+  İSTANBUL: [
+    'Adalar',
+    'Arnavutköy',
+    'Ataşehir',
+    'Avcılar',
+    'Bağcılar',
+    'Bahçelievler',
+    'Bakırköy',
+    'Başakşehir',
+    'Bayrampaşa',
+    'Beşiktaş',
+    'Beykoz',
+    'Beylikdüzü',
+    'Beyoğlu',
+    'Büyükçekmece',
+    'Çatalca',
+    'Çekmeköy',
+    'Esenler',
+    'Esenyurt',
+    'Eyüpsultan',
+    'Fatih',
+    'Gaziosmanpaşa',
+    'Güngören',
+    'Kadıköy',
+    'Kağıthane',
+    'Kartal',
+    'Küçükçekmece',
+    'Maltepe',
+    'Pendik',
+    'Sancaktepe',
+    'Sarıyer',
+    'Silivri',
+    'Sultanbeyli',
+    'Sultangazi',
+    'Şile',
+    'Şişli',
+    'Tuzla',
+    'Ümraniye',
+    'Üsküdar',
+    'Zeytinburnu',
+  ],
+  İZMİR: [
+    'Aliağa',
+    'Balçova',
+    'Bayındır',
+    'Bayraklı',
+    'Bergama',
+    'Beydağ',
+    'Bornova',
+    'Buca',
+    'Çeşme',
+    'Çiğli',
+    'Dikili',
+    'Foça',
+    'Gaziemir',
+    'Güzelbahçe',
+    'Karabağlar',
+    'Karaburun',
+    'Karşıyaka',
+    'Kemalpaşa',
+    'Kınık',
+    'Kiraz',
+    'Konak',
+    'Menderes',
+    'Menemen',
+    'Narlıdere',
+    'Ödemiş',
+    'Seferihisar',
+    'Selçuk',
+    'Tire',
+    'Torbalı',
+    'Urla',
+  ],
+  KAHRAMANMARAŞ: [
+    'Afşin',
+    'Andırın',
+    'Çağlayancerit',
+    'Dulkadiroğlu',
+    'Ekinözü',
+    'Elbistan',
+    'Göksun',
+    'Onikişubat',
+    'Pazarcık',
+    'Türkoğlu',
+  ],
+  KARABÜK: [
+    'Eflani',
+    'Eskipazar',
+    'Karabük Merkez',
+    'Ovacık',
+    'Safranbolu',
+    'Yenice',
+  ],
+  KARAMAN: [
+    'Ayrancı',
+    'Başyayla',
+    'Ermenek',
+    'Karaman Merkez',
+    'Kazımkarabekir',
+    'Sarıveliler',
+  ],
+  KARS: [
+    'Akyaka',
+    'Arpaçay',
+    'Digor',
+    'Kağızman',
+    'Kars Merkez',
+    'Sarıkamış',
+    'Selim',
+    'Susuz',
+  ],
+  KASTAMONU: [
+    'Abana',
+    'Ağlı',
+    'Araç',
+    'Azdavay',
+    'Bozkurt',
+    'Cide',
+    'Çatalzeytin',
+    'Daday',
+    'Devrekani',
+    'Doğanyurt',
+    'Hanönü',
+    'İhsangazi',
+    'İnebolu',
+    'Kastamonu Merkez',
+    'Küre',
+    'Pınarbaşı',
+    'Seydiler',
+    'Şenpazar',
+    'Taşköprü',
+    'Tosya',
+  ],
+  KAYSERİ: [
+    'Akkışla',
+    'Bünyan',
+    'Develi',
+    'Felahiye',
+    'Hacılar',
+    'İncesu',
+    'Kocasinan',
+    'Melikgazi',
+    'Özvatan',
+    'Pınarbaşı',
+    'Sarız',
+    'Talas',
+    'Tomarza',
+    'Yahyalı',
+    'Yeşilhisar',
+  ],
+  KIRIKKALE: [
+    'Bahşılı',
+    'Balışeyh',
+    'Çelebi',
+    'Delice',
+    'Karakeçili',
+    'Keskin',
+    'Kırıkkale Merkez',
+    'Sulakyurt',
+    'Yahşihan',
+  ],
+  KIRKLARELİ: [
+    'Babaeski',
+    'Demirköy',
+    'Kırklareli Merkez',
+    'Kofçaz',
+    'Lüleburgaz',
+    'Pehlivanköy',
+    'Pınarhisar',
+    'Vize',
+  ],
+  KIRŞEHİR: [
+    'Akçakent',
+    'Akpınar',
+    'Boztepe',
+    'Çiçekdağı',
+    'Kaman',
+    'Kırşehir Merkez',
+    'Mucur',
+  ],
+  KİLİS: [
+    'Elbeyli',
+    'Kilis Merkez',
+    'Musabeyli',
+    'Polateli',
+  ],
+  KOCAELİ: [
+    'Başiskele',
+    'Çayırova',
+    'Darıca',
+    'Derince',
+    'Dilovası',
+    'Gebze',
+    'Gölcük',
+    'İzmit',
+    'Kandıra',
+    'Karamürsel',
+    'Kartepe',
+    'Körfez',
+  ],
+  KONYA: [
+    'Ahırlı',
+    'Akören',
+    'Akşehir',
+    'Altınekin',
+    'Beyşehir',
+    'Bozkır',
+    'Cihanbeyli',
+    'Çeltik',
+    'Çumra',
+    'Derbent',
+    'Derebucak',
+    'Doğanhisar',
+    'Emirgazi',
+    'Ereğli',
+    'Güneysınır',
+    'Hadim',
+    'Halkapınar',
+    'Hüyük',
+    'Ilgın',
+    'Kadınhanı',
+    'Karapınar',
+    'Karatay',
+    'Kulu',
+    'Meram',
+    'Sarayönü',
+    'Selçuklu',
+    'Seydişehir',
+    'Taşkent',
+    'Tuzlukçu',
+    'Yalıhüyük',
+  ],
+  KÜTAHYA: [
+    'Altıntaş',
+    'Aslanapa',
+    'Çavdarhisar',
+    'Domaniç',
+    'Dumlupınar',
+    'Emet',
+    'Gediz',
+    'Hisarcık',
+    'Kütahya Merkez',
+    'Pazarlar',
+    'Şaphane',
+    'Simav',
+    'Tavşanlı',
+  ],
+  MALATYA: [
+    'Akçadağ',
+    'Arapgir',
+    'Arguvan',
+    'Battalgazi',
+    'Darende',
+    'Doğanşehir',
+    'Doğanyol',
+    'Hekimhan',
+    'Kale',
+    'Kuluncak',
+    'Pütürge',
+    'Yazıhan',
+    'Yeşilyurt',
+  ],
+  MANİSA: [
+    'Ahmetli',
+    'Akhisar',
+    'Alaşehir',
+    'Demirci',
+    'Gölmarmara',
+    'Gördes',
+    'Kırkağaç',
+    'Köprübaşı',
+    'Kula',
+    'Salihli',
+    'Sarıgöl',
+    'Saruhanlı',
+    'Selendi',
+    'Soma',
+    'Şehzadeler',
+    'Turgutlu',
+    'Yunusemre',
+  ],
+  MARDİN: [
+    'Artuklu',
+    'Dargeçit',
+    'Derik',
+    'Kızıltepe',
+    'Mazıdağı',
+    'Midyat',
+    'Nusaybin',
+    'Ömerli',
+    'Savur',
+    'Yeşilli',
+  ],
+  MERSİN: [
+    'Akdeniz',
+    'Anamur',
+    'Aydıncık',
+    'Bozyazı',
+    'Çamlıyayla',
+    'Erdemli',
+    'Gülnar',
+    'Mezitli',
+    'Mut',
+    'Silifke',
+    'Tarsus',
+    'Toroslar',
+    'Yenişehir',
+  ],
+  MUĞLA: [
+    'Bodrum',
+    'Dalaman',
+    'Datça',
+    'Fethiye',
+    'Kavaklıdere',
+    'Köyceğiz',
+    'Marmaris',
+    'Menteşe',
+    'Milas',
+    'Ortaca',
+    'Seydikemer',
+    'Ula',
+    'Yatağan',
+  ],
+  MUŞ: [
+    'Bulanık',
+    'Hasköy',
+    'Korkut',
+    'Malazgirt',
+    'Muş Merkez',
+    'Varto',
+  ],
+  NEVŞEHİR: [
+    'Acıgöl',
+    'Avanos',
+    'Derinkuyu',
+    'Gülşehir',
+    'Hacıbektaş',
+    'Kozaklı',
+    'Nevşehir Merkez',
+    'Ürgüp',
+  ],
+  NİĞDE: [
+    'Altunhisar',
+    'Bor',
+    'Çamardı',
+    'Çiftlik',
+    'Niğde Merkez',
+    'Ulukışla',
+  ],
+  ORDU: [
+    'Akkuş',
+    'Altınordu',
+    'Aybastı',
+    'Çamaş',
+    'Çatalpınar',
+    'Çaybaşı',
+    'Fatsa',
+    'Gölköy',
+    'Gülyalı',
+    'Gürgentepe',
+    'İkizce',
+    'Kabadüz',
+    'Kabataş',
+    'Korgan',
+    'Kumru',
+    'Mesudiye',
+    'Perşembe',
+    'Ulubey',
+    'Ünye',
+  ],
+  OSMANİYE: [
+    'Bahçe',
+    'Düziçi',
+    'Hasanbeyli',
+    'Kadirli',
+    'Osmaniye Merkez',
+    'Sumbas',
+    'Toprakkale',
+  ],
+  RİZE: [
+    'Ardeşen',
+    'Çamlıhemşin',
+    'Çayeli',
+    'Derepazarı',
+    'Fındıklı',
+    'Güneysu',
+    'Hemşin',
+    'İkizdere',
+    'İyidere',
+    'Kalkandere',
+    'Pazar',
+    'Rize Merkez',
+  ],
+  SAKARYA: [
+    'Adapazarı',
+    'Akyazı',
+    'Arifiye',
+    'Erenler',
+    'Ferizli',
+    'Geyve',
+    'Hendek',
+    'Karapürçek',
+    'Karasu',
+    'Kaynarca',
+    'Kocaali',
+    'Pamukova',
+    'Sapanca',
+    'Serdivan',
+    'Söğütlü',
+    'Taraklı',
+  ],
+  SAMSUN: [
+    'Alaçam',
+    'Asarcık',
+    'Atakum',
+    'Ayvacık',
+    'Bafra',
+    'Canik',
+    'Çarşamba',
+    'Havza',
+    'İlkadım',
+    'Kavak',
+    'Ladik',
+    'Ondokuzmayıs',
+    'Salıpazarı',
+    'Tekkeköy',
+    'Terme',
+    'Vezirköprü',
+    'Yakakent',
+  ],
+  SİİRT: [
+    'Baykan',
+    'Eruh',
+    'Kurtalan',
+    'Pervari',
+    'Siirt Merkez',
+    'Şirvan',
+    'Tillo',
+  ],
+  SİNOP: [
+    'Ayancık',
+    'Boyabat',
+    'Dikmen',
+    'Durağan',
+    'Erfelek',
+    'Gerze',
+    'Saraydüzü',
+    'Sinop Merkez',
+    'Türkeli',
+  ],
+  SİVAS: [
+    'Akıncılar',
+    'Altınyayla',
+    'Divriği',
+    'Doğanşar',
+    'Gemerek',
+    'Gölova',
+    'Gürün',
+    'Hafik',
+    'İmranlı',
+    'Kangal',
+    'Koyulhisar',
+    'Sivas Merkez',
+    'Suşehri',
+    'Şarkışla',
+    'Ulaş',
+    'Yıldızeli',
+    'Zara',
+  ],
+  ŞANLIURFA: [
+    'Akçakale',
+    'Birecik',
+    'Bozova',
+    'Ceylanpınar',
+    'Eyyübiye',
+    'Halfeti',
+    'Haliliye',
+    'Harran',
+    'Hilvan',
+    'Karaköprü',
+    'Siverek',
+    'Suruç',
+    'Viranşehir',
+  ],
+  ŞIRNAK: [
+    'Beytüşşebap',
+    'Cizre',
+    'Güçlükonak',
+    'İdil',
+    'Silopi',
+    'Şırnak Merkez',
+    'Uludere',
+  ],
+  TEKİRDAĞ: [
+    'Çerkezköy',
+    'Çorlu',
+    'Ergene',
+    'Hayrabolu',
+    'Kapaklı',
+    'Malkara',
+    'Marmaraereğlisi',
+    'Muratlı',
+    'Saray',
+    'Süleymanpaşa',
+    'Şarköy',
+  ],
+  TOKAT: [
+    'Almus',
+    'Artova',
+    'Başçiftlik',
+    'Erbaa',
+    'Niksar',
+    'Pazar',
+    'Reşadiye',
+    'Sulusaray',
+    'Tokat Merkez',
+    'Turhal',
+    'Yeşilyurt',
+    'Zile',
+  ],
+  TRABZON: [
+    'Akçaabat',
+    'Araklı',
+    'Arsin',
+    'Beşikdüzü',
+    'Çarşıbaşı',
+    'Çaykara',
+    'Dernekpazarı',
+    'Düzköy',
+    'Hayrat',
+    'Köprübaşı',
+    'Maçka',
+    'Of',
+    'Ortahisar',
+    'Şalpazarı',
+    'Sürmene',
+    'Tonya',
+    'Vakfıkebir',
+    'Yomra',
+  ],
+  TUNCELİ: [
+    'Çemişgezek',
+    'Hozat',
+    'Mazgirt',
+    'Nazımiye',
+    'Ovacık',
+    'Pertek',
+    'Pülümür',
+    'Tunceli Merkez',
+  ],
+  UŞAK: [
+    'Banaz',
+    'Eşme',
+    'Karahallı',
+    'Sivaslı',
+    'Ulubey',
+    'Uşak Merkez',
+  ],
+  VAN: [
+    'Bahçesaray',
+    'Başkale',
+    'Çaldıran',
+    'Çatak',
+    'Edremit',
+    'Erciş',
+    'Gevaş',
+    'Gürpınar',
+    'İpekyolu',
+    'Muradiye',
+    'Özalp',
+    'Saray',
+    'Tuşba',
+  ],
+  YALOVA: [
+    'Altınova',
+    'Armutlu',
+    'Çınarcık',
+    'Çiftlikköy',
+    'Termal',
+    'Yalova Merkez',
+  ],
+  YOZGAT: [
+    'Akdağmadeni',
+    'Aydıncık',
+    'Boğazlıyan',
+    'Çandır',
+    'Çayıralan',
+    'Çekerek',
+    'Kadışehri',
+    'Saraykent',
+    'Sarıkaya',
+    'Şefaatli',
+    'Sorgun',
+    'Yenifakılı',
+    'Yerköy',
+    'Yozgat Merkez',
+  ],
+  ZONGULDAK: [
+    'Alaplı',
+    'Çaycuma',
+    'Devrek',
+    'Ereğli',
+    'Gökçebey',
+    'Kilimli',
+    'Kozlu',
+    'Zonguldak Merkez',
+  ],
+};
+
+let projectMap = null;
+let projectMapTileLayer = null;
+const projectMarkers = new Map();
+let activeMapPopup = null;
+
 let selectedProjectId = projectStore[0]?.id ?? null;
 let editingProductId = null;
 let editingTimelineId = null;
@@ -140,11 +1497,227 @@ let projectFormMode = null;
 const defaultSubmitLabels = new Map();
 const logForms = {};
 
+let currentView = 'project-pool';
+
+const STORAGE_KEY = 'kalde-panel-state';
+let persistStateTimer = null;
+let storageSupported = null;
+
+function isStorageSupported() {
+  if (storageSupported !== null) {
+    return storageSupported;
+  }
+  if (typeof window === 'undefined' || !window.localStorage) {
+    storageSupported = false;
+    return storageSupported;
+  }
+  try {
+    const testKey = '__storage_test__';
+    window.localStorage.setItem(testKey, '1');
+    window.localStorage.removeItem(testKey);
+    storageSupported = true;
+  } catch (error) {
+    console.warn('Local storage is not available', error);
+    storageSupported = false;
+  }
+  return storageSupported;
+}
+
+function clonePlainList(items) {
+  if (!Array.isArray(items)) return [];
+  return items.map((item) => (item && typeof item === 'object' ? { ...item } : item));
+}
+
+function cloneAttachments(attachments) {
+  if (!Array.isArray(attachments)) return [];
+  return attachments.map((attachment) => {
+    if (!attachment || typeof attachment !== 'object') return null;
+    const { file, url, ...rest } = attachment;
+    return { ...rest };
+  }).filter(Boolean);
+}
+
+function cloneProject(project) {
+  if (!project || typeof project !== 'object') return null;
+  const cloned = {
+    ...project,
+    products: clonePlainList(project.products),
+    timeline: clonePlainList(project.timeline),
+    visits: clonePlainList(project.visits),
+    offers: clonePlainList(project.offers),
+    payments: clonePlainList(project.payments),
+  };
+  ensureProjectCollections(cloned);
+  return cloned;
+}
+
+function cloneFirm(firm) {
+  if (!firm || typeof firm !== 'object') return null;
+  return {
+    ...firm,
+    ongoing: clonePlainList(firm.ongoing),
+    completed: clonePlainList(firm.completed),
+  };
+}
+
+function cloneRequest(request) {
+  if (!request || typeof request !== 'object') return null;
+  return {
+    ...request,
+    attachments: cloneAttachments(request.attachments),
+  };
+}
+
+function getAppStateSnapshot() {
+  return {
+    users: clonePlainList(userStore),
+    projects: projectStore.map(cloneProject).filter(Boolean),
+    constructionFirms: constructionFirms.map(cloneFirm).filter(Boolean),
+    mechanicalFirms: mechanicalFirms.map(cloneFirm).filter(Boolean),
+    requests: requestStore.map(cloneRequest).filter(Boolean),
+    selectedProjectId,
+    currentUserId: currentUser?.id ?? null,
+    coordinateCache: serializeCoordinateCache(),
+  };
+}
+
+function persistAppStateNow() {
+  if (!isStorageSupported()) return;
+  try {
+    const snapshot = getAppStateSnapshot();
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+  } catch (error) {
+    console.error('State persistence failed', error);
+  }
+}
+
+function schedulePersistState() {
+  if (!isStorageSupported()) return;
+  if (persistStateTimer) {
+    window.clearTimeout(persistStateTimer);
+  }
+  persistStateTimer = window.setTimeout(() => {
+    persistStateTimer = null;
+    persistAppStateNow();
+  }, 200);
+}
+
+function normalizeFirmRecord(record) {
+  if (!record || typeof record !== 'object') return null;
+  const firm = cloneFirm(record);
+  if (!Array.isArray(firm.ongoing)) firm.ongoing = [];
+  if (!Array.isArray(firm.completed)) firm.completed = [];
+  return firm;
+}
+
+function normalizeProjectRecord(record) {
+  if (!record || typeof record !== 'object') return null;
+  const project = cloneProject(record);
+  if (!project.id) return null;
+  ensureProjectCollections(project);
+  project.city = sanitizeText(project.city);
+  project.district = sanitizeText(project.district);
+  const coordinates = normalizeCoordinates(project.coordinates);
+  if (coordinates) {
+    project.coordinates = { ...coordinates, source: coordinates.source ?? 'saved' };
+  } else {
+    const key = getProjectLocationKey(project);
+    if (key && coordinateCache.has(key)) {
+      const cached = normalizeCoordinates(coordinateCache.get(key));
+      if (cached) {
+        project.coordinates = { ...cached, source: cached.source ?? 'cache' };
+      } else {
+        project.coordinates = null;
+      }
+    } else {
+      project.coordinates = null;
+    }
+  }
+  project.category = normalizeProjectCategory(project.category);
+  project.housingUnits = normalizeHousingUnits(project.housingUnits);
+  project.salesStatus = project.salesStatus || deriveSalesStatus(project);
+  return project;
+}
+
+function normalizeRequestRecord(record) {
+  if (!record || typeof record !== 'object') return null;
+  const request = cloneRequest(record);
+  request.attachments = cloneAttachments(request.attachments);
+  return request;
+}
+
+function loadPersistedState() {
+  if (!isStorageSupported()) return;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+
+    if (data.coordinateCache) {
+      restoreCoordinateCache(data.coordinateCache);
+    } else {
+      restoreCoordinateCache(null);
+    }
+
+    if (Array.isArray(data.users) && data.users.length) {
+      userStore.splice(0, userStore.length, ...data.users.map((user) => ({ ...user })));
+    }
+
+    if (Array.isArray(data.projects) && data.projects.length) {
+      const projects = data.projects.map(normalizeProjectRecord).filter(Boolean);
+      projectStore.splice(0, projectStore.length, ...projects);
+    }
+
+    if (Array.isArray(data.constructionFirms)) {
+      const firms = data.constructionFirms.map(normalizeFirmRecord).filter(Boolean);
+      constructionFirms.splice(0, constructionFirms.length, ...firms);
+    }
+
+    if (Array.isArray(data.mechanicalFirms)) {
+      const firms = data.mechanicalFirms.map(normalizeFirmRecord).filter(Boolean);
+      mechanicalFirms.splice(0, mechanicalFirms.length, ...firms);
+    }
+
+    if (Array.isArray(data.requests)) {
+      const requests = data.requests.map(normalizeRequestRecord).filter(Boolean);
+      requestStore.splice(0, requestStore.length, ...requests);
+    }
+
+    if (data.currentUserId) {
+      currentUser = userStore.find((user) => user.id === data.currentUserId) ?? null;
+    }
+
+    if (data.selectedProjectId && projectStore.some((project) => project.id === data.selectedProjectId)) {
+      selectedProjectId = data.selectedProjectId;
+    } else {
+      selectedProjectId = projectStore[0]?.id ?? null;
+    }
+
+    applyCachedCoordinatesToProjects();
+  } catch (error) {
+    console.error('State load failed', error);
+  }
+}
+
 const PROJECT_FIELD_ALIASES = {
   id: ['proje kodu', 'proje id', 'id', 'kod', 'referans'],
   name: ['proje adı', 'proje adi', 'adı', 'adi', 'ad', 'project name', 'proje'],
   category: ['kategori', 'proje kategorisi'],
   city: ['il', 'şehir', 'sehir', 'city', 'lokasyon', 'lokasyon ili'],
+  district: ['ilçe', 'ilce', 'district'],
+  housingUnits: [
+    'konut sayısı',
+    'konut sayisi',
+    'daire sayısı',
+    'daire sayisi',
+    'konut adedi',
+    'konut adet',
+    'bağımsız bölüm sayısı',
+    'bagimsiz bolum sayisi',
+    'bagimsiz bolum',
+    'bağımsız bölüm',
+    'toplam konut',
+  ],
   addedAt: [
     'eklenme tarihi',
     'eklenme',
@@ -156,6 +1729,8 @@ const PROJECT_FIELD_ALIASES = {
     'oluşturma tarihi',
     'başlangıç tarihi',
     'baslangic tarihi',
+    'ilk işlem tarihi',
+    'ilk islem tarihi',
   ],
   updatedAt: [
     'son işlem tarihi',
@@ -198,11 +1773,148 @@ const PROJECT_FIELD_ALIASES = {
   salesStatus: ['satış durumu', 'satis durumu'],
 };
 
+const TURKISH_CITY_NAMES = new Set(
+  [
+    'Adana',
+    'Adıyaman',
+    'Afyonkarahisar',
+    'Ağrı',
+    'Aksaray',
+    'Amasya',
+    'Ankara',
+    'Antalya',
+    'Ardahan',
+    'Artvin',
+    'Aydın',
+    'Balıkesir',
+    'Bartın',
+    'Batman',
+    'Bayburt',
+    'Bilecik',
+    'Bingöl',
+    'Bitlis',
+    'Bolu',
+    'Burdur',
+    'Bursa',
+    'Çanakkale',
+    'Çankırı',
+    'Çorum',
+    'Denizli',
+    'Diyarbakır',
+    'Düzce',
+    'Edirne',
+    'Elazığ',
+    'Erzincan',
+    'Erzurum',
+    'Eskişehir',
+    'Gaziantep',
+    'Giresun',
+    'Gümüşhane',
+    'Hakkari',
+    'Hatay',
+    'Iğdır',
+    'Isparta',
+    'İstanbul',
+    'İzmir',
+    'Kahramanmaraş',
+    'Karabük',
+    'Karaman',
+    'Kars',
+    'Kastamonu',
+    'Kayseri',
+    'Kilis',
+    'Kırıkkale',
+    'Kırklareli',
+    'Kırşehir',
+    'Kocaeli',
+    'Konya',
+    'Kütahya',
+    'Malatya',
+    'Manisa',
+    'Mardin',
+    'Mersin',
+    'Muğla',
+    'Muş',
+    'Nevşehir',
+    'Niğde',
+    'Ordu',
+    'Osmaniye',
+    'Rize',
+    'Sakarya',
+    'Samsun',
+    'Şanlıurfa',
+    'Siirt',
+    'Sinop',
+    'Sivas',
+    'Şırnak',
+    'Tekirdağ',
+    'Tokat',
+    'Trabzon',
+    'Tunceli',
+    'Uşak',
+    'Van',
+    'Yalova',
+    'Yozgat',
+    'Zonguldak',
+  ].map((city) => city.toLocaleLowerCase('tr-TR'))
+);
+
+const CATEGORY_KEYWORDS = ['toki', 'emlak', 'özel', 'ozel', 'kamu', 'ihale', 'konut', 'residence', 'ticari'];
+const CHANNEL_KEYWORDS = ['bayi', 'dealer', 'doğrudan', 'dogrudan', 'direct', 'kanal', 'aracı', 'araci', 'distrib'];
+const CONTRACTOR_KEYWORDS = [
+  'inş',
+  'ins',
+  'yapı',
+  'yapi',
+  'müh',
+  'muh',
+  'taah',
+  'san',
+  'tic',
+  'yapım',
+  'yapim',
+  'construction',
+  'mimarlık',
+  'mimarlik',
+];
+const MECHANICAL_KEYWORDS = [
+  'mekanik',
+  'tesisat',
+  'hvac',
+  'mek',
+  'elektrik',
+  'klima',
+  'otomat',
+  'havalandırma',
+  'havalandirma',
+  'ısıtma',
+  'isitma',
+];
+const SALES_STATUS_KEYWORDS = ['kazan', 'kaybet', 'bekle', 'devam', 'onay', 'ret', 'red', 'iptal', 'teslim', 'revize'];
+const INSTITUTION_KEYWORDS = ['belediye', 'idare', 'kurum', 'bakan', 'müdürlük', 'mudurluk', 'toki', 'emlak'];
+const TEAM_KEYWORDS = ['ekip', 'team', 'grup', 'satış', 'satis', 'pazarlama', 'mühendis', 'muhendis'];
+const SCOPE_KEYWORDS = ['adet', 'daire', 'blok', 'm²', 'm2', 'metre', 'konut', 'faz', 'tower'];
+const PROGRESS_KEYWORDS = ['ilerleme', 'tamam', 'inşaat', 'insaat', 'durum', 'aşama', 'asama', 'not'];
+const HOUSING_KEYWORDS = [
+  'konut',
+  'daire',
+  'bagimsiz',
+  'bağımsız',
+  'adet',
+  'blok',
+  'toplam konut',
+  'bağımsız bölüm',
+  'bagimsiz bolum',
+];
+const DEALER_NAME_KEYWORDS = ['bayi', 'dealer', 'distrib', 'fran', 'marka'];
+
 const PROJECT_EXPORT_HEADERS = [
   'Proje Kodu',
   'Proje Adı',
   'Kategori',
   'İl',
+  'İlçe',
+  'Konut Sayısı',
   'Eklenme Tarihi',
   'Son Güncelleme',
   'Bağlantı Türü',
@@ -238,8 +1950,8 @@ function getActiveUsers() {
 
 function findUserByEmail(value) {
   if (!value) return undefined;
-  const normalized = value.trim().toLocaleLowerCase('tr-TR');
-  return getActiveUsers().find((user) => user.email.toLocaleLowerCase('tr-TR') === normalized);
+  const normalized = value.trim().toLocaleLowerCase('en-US');
+  return getActiveUsers().find((user) => user.email.toLocaleLowerCase('en-US') === normalized);
 }
 
 function populateStaffSelect(select, selectedValue = '') {
@@ -284,6 +1996,103 @@ function refreshStaffSelectors() {
     .forEach((select) => populateStaffSelect(select, select.value || ''));
 }
 
+function getProjectLocationFields() {
+  if (!(projectForm instanceof HTMLFormElement)) {
+    return { citySelect: null, districtSelect: null };
+  }
+  const city = projectForm.elements.namedItem('projectCity');
+  const district = projectForm.elements.namedItem('projectDistrict');
+  return {
+    citySelect: city instanceof HTMLSelectElement ? city : null,
+    districtSelect: district instanceof HTMLSelectElement ? district : null,
+  };
+}
+
+function populateCitySelect(select, selectedValue) {
+  if (!(select instanceof HTMLSelectElement)) return '';
+  const normalizedSelected = normalizeCityKey(selectedValue);
+  const options = ['<option value="">İl Seçin</option>'];
+  let matchedValue = '';
+
+  TURKISH_PROVINCES.forEach((province) => {
+    const text = sanitizeText(province);
+    if (!text) return;
+    const option = `<option value="${escapeHtml(text)}">${escapeHtml(text)}</option>`;
+    options.push(option);
+    if (normalizedSelected && normalizeCityKey(text) === normalizedSelected) {
+      matchedValue = text;
+    }
+  });
+
+  const extra = sanitizeText(selectedValue);
+  if (extra && !matchedValue) {
+    options.push(`<option value="${escapeHtml(extra)}">${escapeHtml(extra)}</option>`);
+    matchedValue = extra;
+  }
+
+  select.innerHTML = options.join('');
+  select.value = matchedValue || '';
+  return select.value;
+}
+
+function populateDistrictSelect(select, cityValue, selectedDistrict) {
+  if (!(select instanceof HTMLSelectElement)) return '';
+  const normalizedCity = normalizeCityKey(cityValue);
+  const normalizedSelected = normalizeCityKey(selectedDistrict);
+  const districts = normalizedCity ? TURKISH_DISTRICTS[normalizedCity] ?? [] : [];
+  const hasCity = Boolean(normalizedCity);
+  const hasDistrictData = districts.length > 0;
+  const hasCustomSelection = Boolean(sanitizeText(selectedDistrict));
+  const placeholder = hasCity
+    ? hasDistrictData || hasCustomSelection
+      ? 'İlçe Seçin'
+      : 'İlçe bulunamadı'
+    : 'Önce il seçin';
+  const options = [`<option value="">${escapeHtml(placeholder)}</option>`];
+  let matchedValue = '';
+
+  districts.forEach((district) => {
+    const text = sanitizeText(district);
+    if (!text) return;
+    options.push(`<option value="${escapeHtml(text)}">${escapeHtml(text)}</option>`);
+    if (normalizedSelected && normalizeCityKey(text) === normalizedSelected) {
+      matchedValue = text;
+    }
+  });
+
+  const extra = sanitizeText(selectedDistrict);
+  if (extra && !matchedValue) {
+    options.push(`<option value="${escapeHtml(extra)}">${escapeHtml(extra)}</option>`);
+    matchedValue = extra;
+  }
+
+  select.innerHTML = options.join('');
+  select.value = matchedValue || '';
+  select.disabled = !hasCity || (!hasDistrictData && !hasCustomSelection);
+  return select.value;
+}
+
+function applyProjectLocationToForm(city, district) {
+  const { citySelect, districtSelect } = getProjectLocationFields();
+  if (!citySelect || !districtSelect) return;
+  const appliedCity = populateCitySelect(citySelect, city);
+  populateDistrictSelect(districtSelect, appliedCity, district);
+}
+
+function setupProjectLocationSelectors() {
+  const { citySelect, districtSelect } = getProjectLocationFields();
+  if (!citySelect || !districtSelect) return;
+
+  const initialCity = citySelect.value || '';
+  const initialDistrict = districtSelect.value || '';
+  const appliedCity = populateCitySelect(citySelect, initialCity);
+  populateDistrictSelect(districtSelect, appliedCity, initialDistrict);
+
+  citySelect.addEventListener('change', () => {
+    populateDistrictSelect(districtSelect, citySelect.value, '');
+  });
+}
+
 function normalizeHeaderValue(value) {
   if (value === undefined || value === null) return '';
   return String(value)
@@ -304,6 +2113,395 @@ function resolveProjectField(header) {
 function sanitizeText(value) {
   if (value === undefined || value === null) return '';
   return String(value).trim();
+}
+
+function normalizeSearchQuery(value) {
+  if (value === undefined || value === null) return '';
+  return String(value).toLocaleLowerCase('tr-TR').trim();
+}
+
+function normalizeCoordinates(value) {
+  if (!value || typeof value !== 'object') return null;
+  const lat = Number(value.lat ?? value.latitude ?? value.y);
+  const lng = Number(value.lng ?? value.lon ?? value.longitude ?? value.x);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const normalized = { lat, lng };
+  if (value.source) {
+    normalized.source = value.source;
+  }
+  return normalized;
+}
+
+function normalizeProjectCategory(value) {
+  const text = sanitizeText(value);
+  if (!text) return 'Özel';
+  const normalized = text.toLocaleLowerCase('tr-TR');
+  if (normalized.includes('toki')) return 'TOKİ';
+  if (normalized.includes('toplu konut')) return 'TOKİ';
+  if (normalized.includes('emlak')) return 'Emlak Konut';
+  if (
+    normalized.includes('kamu') ||
+    normalized.includes('beled') ||
+    normalized.includes('resmi') ||
+    normalized.includes('devlet') ||
+    normalized.includes('idare')
+  ) {
+    return 'Kamu';
+  }
+  if (
+    normalized.includes('özel') ||
+    normalized.includes('ozel') ||
+    normalized.includes('private') ||
+    normalized.includes('residence') ||
+    normalized.includes('ticari') ||
+    normalized.includes('residans')
+  ) {
+    return 'Özel';
+  }
+  return 'Özel';
+}
+
+function normalizeHousingUnits(value) {
+  if (value === undefined || value === null || value === '') return '';
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || value <= 0) return '';
+    return String(Math.round(value));
+  }
+  const text = sanitizeText(value);
+  if (!text) return '';
+  const cleaned = text.replace(/\s+/g, ' ');
+  const match = cleaned.match(/\d[\d.,]*/u);
+  if (!match) {
+    return cleaned;
+  }
+  const digits = match[0].replace(/\D/g, '');
+  if (!digits) {
+    return cleaned;
+  }
+  const numeric = Number(digits);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return '';
+  }
+  const normalizedNumber = String(Math.trunc(numeric));
+  if (!/[a-zçğıöşü]/i.test(cleaned)) {
+    return normalizedNumber;
+  }
+  return cleaned.replace(match[0], normalizedNumber);
+}
+
+function gatherColumnValues(rows, columnIndex, startIndex, maxSamples = 40) {
+  const values = [];
+  for (let rowIndex = startIndex; rowIndex < rows.length && values.length < maxSamples; rowIndex += 1) {
+    const rawRow = rows[rowIndex];
+    const cells = Array.isArray(rawRow) ? rawRow : Object.values(rawRow ?? {});
+    if (columnIndex >= cells.length) continue;
+    const cell = cells[columnIndex];
+    if (cell === undefined || cell === null) continue;
+    if (typeof cell === 'number' && Number.isFinite(cell)) {
+      values.push(cell);
+      continue;
+    }
+    const text = sanitizeText(cell);
+    if (text) {
+      values.push(cell);
+    }
+  }
+  return values;
+}
+
+function inferProjectFieldFromData(rows, columnIndex, startIndex, assignedFields, headerValue) {
+  const availableFields = Object.keys(PROJECT_FIELD_ALIASES).filter((field) => !assignedFields.has(field));
+  if (!availableFields.length) return null;
+
+  const rawValues = gatherColumnValues(rows, columnIndex, startIndex);
+  if (!rawValues.length) return null;
+
+  const headerNormalized = normalizeHeaderValue(headerValue ?? '');
+  let bestField = null;
+  let bestScore = 0;
+
+  availableFields.forEach((field) => {
+    const score = scoreColumnForField(field, headerNormalized, rawValues);
+    if (score > bestScore) {
+      bestField = field;
+      bestScore = score;
+    }
+  });
+
+  if (!bestField) return null;
+
+  const MIN_INFERENCE_SCORE = 3;
+  if (bestScore < MIN_INFERENCE_SCORE) {
+    return null;
+  }
+
+  return bestField;
+}
+
+function scoreColumnForField(field, headerNormalized, rawValues) {
+  const sanitizedValues = [];
+  const filteredRawValues = [];
+  rawValues.forEach((value) => {
+    if (value === undefined || value === null) return;
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      sanitizedValues.push(String(value));
+      filteredRawValues.push(value);
+      return;
+    }
+    const text = sanitizeText(value);
+    if (!text) return;
+    sanitizedValues.push(text);
+    filteredRawValues.push(value);
+  });
+
+  if (!sanitizedValues.length) return 0;
+
+  const header = headerNormalized || '';
+  const lowerValues = sanitizedValues.map((value) => value.toLocaleLowerCase('tr-TR'));
+  const total = sanitizedValues.length;
+  const uniqueRatio = new Set(lowerValues).size / total;
+  const spaceRatio = sanitizedValues.filter((value) => value.includes(' ')).length / total;
+  const mediumTextRatio = sanitizedValues.filter((value) => value.length >= 12).length / total;
+  const longTextRatio = sanitizedValues.filter((value) => value.length >= 35).length / total;
+  const numericRatio = sanitizedValues.filter((value) => /^[0-9]+$/.test(value)).length / total;
+  const codeRatio = sanitizedValues.filter((value) => /^[0-9a-zA-Z_.\-/]+$/.test(value) && !value.includes(' ')).length / total;
+  const shortLengthRatio = sanitizedValues.filter((value) => value.length <= 8).length / total;
+  const dateRatio = filteredRawValues.filter((value) => looksLikeDateValue(value)).length / total;
+  const cityMatchRatio = lowerValues.filter((value) => isKnownCity(value)).length / total;
+  const categoryMatchRatio = lowerValues.filter((value) =>
+    CATEGORY_KEYWORDS.some((keyword) => value.includes(keyword))
+  ).length / total;
+  const contractorMatchRatio = lowerValues.filter((value) =>
+    CONTRACTOR_KEYWORDS.some((keyword) => value.includes(keyword))
+  ).length / total;
+  const mechanicalMatchRatio = lowerValues.filter((value) =>
+    MECHANICAL_KEYWORDS.some((keyword) => value.includes(keyword))
+  ).length / total;
+  const channelKeywordRatio = lowerValues.filter((value) =>
+    CHANNEL_KEYWORDS.some((keyword) => value.includes(keyword))
+  ).length / total;
+  const dealerNameRatio = lowerValues.filter((value) =>
+    DEALER_NAME_KEYWORDS.some((keyword) => value.includes(keyword))
+  ).length / total;
+  const salesKeywordRatio = lowerValues.filter((value) =>
+    SALES_STATUS_KEYWORDS.some((keyword) => value.includes(keyword))
+  ).length / total;
+  const institutionKeywordRatio = lowerValues.filter((value) =>
+    INSTITUTION_KEYWORDS.some((keyword) => value.includes(keyword))
+  ).length / total;
+  const teamKeywordRatio = lowerValues.filter((value) =>
+    TEAM_KEYWORDS.some((keyword) => value.includes(keyword))
+  ).length / total;
+  const scopeKeywordRatio = lowerValues.filter((value) =>
+    SCOPE_KEYWORDS.some((keyword) => value.includes(keyword))
+  ).length / total;
+  const progressKeywordRatio = lowerValues.filter((value) =>
+    PROGRESS_KEYWORDS.some((keyword) => value.includes(keyword))
+  ).length / total;
+  const housingKeywordRatio = lowerValues.filter((value) =>
+    HOUSING_KEYWORDS.some((keyword) => value.includes(keyword))
+  ).length / total;
+  const personMatchRatio = sanitizedValues.filter((value) => isLikelyPersonName(value)).length / total;
+  const staffNames = new Set(userStore.map((user) => user.fullName.toLocaleLowerCase('tr-TR')));
+  const knownStaffRatio = lowerValues.filter((value) => staffNames.has(value)).length / total;
+
+  let score = 0;
+
+  switch (field) {
+    case 'id':
+      score += codeRatio * 6;
+      score += uniqueRatio * 4;
+      score += (1 - spaceRatio) * 2;
+      if (numericRatio > 0.5) score += 1.5;
+      if (shortLengthRatio > 0.5) score += 1;
+      if (header.includes('no') || header.includes('numar') || header.includes('kod') || header.includes('ref')) {
+        score += 4;
+      }
+      break;
+    case 'name':
+      score += spaceRatio * 5;
+      score += mediumTextRatio * 2;
+      score += longTextRatio * 2;
+      if (
+        lowerValues.some((value) =>
+          value.includes('proje') || value.includes('site') || value.includes('residence')
+        )
+      ) {
+        score += 2;
+      }
+      if (header.includes('ad') || header.includes('isim') || header.includes('proje')) {
+        score += 4;
+      }
+      break;
+    case 'category':
+      score += categoryMatchRatio * 8;
+      if (header.includes('kategori')) score += 4;
+      if (uniqueRatio <= 0.5) score += 1.5;
+      if (shortLengthRatio > 0.4) score += 1;
+      break;
+    case 'city':
+      score += cityMatchRatio * 10;
+      if (header.includes('sehir') || header.includes('şehir') || header.includes('lokasyon') || header.includes('il')) {
+        score += 4;
+      }
+      if (spaceRatio < 0.3) score += 0.5;
+      break;
+    case 'housingUnits':
+      score += numericRatio * 8;
+      score += housingKeywordRatio * 8;
+      if (shortLengthRatio > 0.4) score += 1.5;
+      if (
+        header.includes('konut') ||
+        header.includes('daire') ||
+        header.includes('adet') ||
+        header.includes('bagimsiz') ||
+        header.includes('bağımsız')
+      ) {
+        score += 4;
+      }
+      break;
+    case 'addedAt':
+      score += dateRatio * 9;
+      if (header.includes('tarih')) score += 2;
+      if (
+        header.includes('eklen') ||
+        header.includes('oluş') ||
+        header.includes('olus') ||
+        header.includes('baslang') ||
+        header.includes('başlang') ||
+        header.includes('ilk')
+      ) {
+        score += 3;
+      }
+      break;
+    case 'updatedAt':
+      score += dateRatio * 9;
+      if (header.includes('tarih')) score += 2;
+      if (header.includes('son') || header.includes('güncel') || header.includes('guncel')) {
+        score += 3;
+      }
+      break;
+    case 'contractor':
+      score += contractorMatchRatio * 10;
+      if (header.includes('yüklen') || header.includes('yuklen') || header.includes('insaat') || header.includes('firma')) {
+        score += 4;
+      }
+      break;
+    case 'mechanical':
+      score += mechanicalMatchRatio * 10;
+      if (header.includes('mekanik') || header.includes('tesisat')) {
+        score += 4;
+      }
+      break;
+    case 'manager':
+      score += personMatchRatio * 8;
+      score += knownStaffRatio * 5;
+      if (
+        header.includes('sorum') ||
+        header.includes('temsil') ||
+        header.includes('yetk') ||
+        header.includes('yonet') ||
+        header.includes('manager') ||
+        header.includes('person')
+      ) {
+        score += 4;
+      }
+      break;
+    case 'channel':
+      score += channelKeywordRatio * 9;
+      if (
+        header.includes('kanal') ||
+        header.includes('baglanti') ||
+        header.includes('bağlantı') ||
+        header.includes('tip')
+      ) {
+        score += 4;
+      }
+      break;
+    case 'channelName':
+      score += dealerNameRatio * 8;
+      if (channelKeywordRatio > 0) score += 2;
+      if (header.includes('bayi') || header.includes('kanal')) {
+        score += 3;
+      }
+      break;
+    case 'salesStatus':
+      score += salesKeywordRatio * 9;
+      if (header.includes('satis') || header.includes('satış') || header.includes('durum') || header.includes('status')) {
+        score += 4;
+      }
+      break;
+    case 'scope':
+      score += scopeKeywordRatio * 7;
+      score += numericRatio * 2;
+      if (
+        header.includes('kapsam') ||
+        header.includes('scope') ||
+        header.includes('icerik') ||
+        header.includes('içerik')
+      ) {
+        score += 4;
+      }
+      break;
+    case 'responsibleInstitution':
+      score += institutionKeywordRatio * 9;
+      if (header.includes('kurum') || header.includes('idare') || header.includes('beled') || header.includes('paydas')) {
+        score += 4;
+      }
+      break;
+    case 'assignedTeam':
+      score += teamKeywordRatio * 9;
+      if (header.includes('ekip') || header.includes('team') || header.includes('grup')) {
+        score += 4;
+      }
+      break;
+    case 'progress':
+      score += progressKeywordRatio * 8;
+      score += longTextRatio * 4;
+      if (header.includes('not') || header.includes('acik') || header.includes('açıkl') || header.includes('ilerleme') || header.includes('durum')) {
+        score += 4;
+      }
+      break;
+    default:
+      break;
+  }
+
+  return score;
+}
+
+function looksLikeDateValue(value) {
+  if (value === undefined || value === null || value === '') return false;
+  const normalized = normalizeDateCell(value);
+  if (!normalized) return false;
+  const year = Number(normalized.slice(0, 4));
+  if (!Number.isFinite(year)) return false;
+  return year >= 1900 && year <= 2100;
+}
+
+function isKnownCity(value) {
+  if (!value) return false;
+  const normalized = String(value)
+    .toLocaleLowerCase('tr-TR')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!normalized) return false;
+  return TURKISH_CITY_NAMES.has(normalized);
+}
+
+function isLikelyPersonName(value) {
+  if (!value) return false;
+  const parts = String(value)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length < 2 || parts.length > 4) return false;
+  let score = 0;
+  parts.forEach((part) => {
+    if (/^[A-ZÇĞİÖŞÜ][a-zçğıöşü'’-]+$/.test(part) || /^[A-ZÇĞİÖŞÜ]+$/.test(part)) {
+      score += 1;
+    }
+  });
+  return score >= parts.length - 1;
 }
 
 function normalizeChannelValue(value) {
@@ -469,6 +2667,7 @@ function ensureFirmRecord(type, name) {
     };
     store.push(firm);
     created = true;
+    schedulePersistState();
   } else {
     if (!Array.isArray(firm.ongoing)) firm.ongoing = [];
     if (!Array.isArray(firm.completed)) firm.completed = [];
@@ -563,6 +2762,7 @@ function renderFirmProfileByName(type, firmName) {
 
   if (created) {
     refreshFirmTable(type);
+    schedulePersistState();
   }
 
   renderFirmProfilePanel(type, firm);
@@ -588,6 +2788,7 @@ function finalizeFirmDeletion(type, firmName) {
   }
 
   renderAssignments();
+  schedulePersistState();
   return true;
 }
 
@@ -711,6 +2912,32 @@ function formatDisplayDate(value) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('tr-TR');
 }
 
+function formatHousingUnits(value) {
+  const normalized = normalizeHousingUnits(value);
+  if (!normalized) return '-';
+  const digits = normalized.replace(/\D/g, '');
+  if (digits) {
+    const numeric = Number(digits);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      const formatted = new Intl.NumberFormat('tr-TR').format(Math.trunc(numeric));
+      if (/^[0-9]+$/.test(normalized)) {
+        return formatted;
+      }
+      return normalized.replace(digits, formatted);
+    }
+  }
+  return normalized;
+}
+
+function getHousingUnitTotal(value) {
+  const normalized = normalizeHousingUnits(value);
+  if (!normalized) return 0;
+  const digits = normalized.match(/\d+/g);
+  if (!digits) return 0;
+  const numeric = Number(digits.join(''));
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
 function getProject(projectId) {
   if (!projectId) return undefined;
   return projectStore.find((item) => item.id === projectId);
@@ -781,6 +3008,7 @@ function triggerAttachmentPicker(requestId) {
         if (!Array.isArray(request.attachments)) request.attachments = [];
         request.attachments.push(...newAttachments);
         renderRequests();
+        schedulePersistState();
       }
     }
     input.remove();
@@ -796,6 +3024,7 @@ function removeAttachmentFromRequest(requestId, attachmentId) {
   const [removed] = request.attachments.splice(index, 1);
   releaseAttachment(removed);
   renderRequests();
+  schedulePersistState();
 }
 
 function registerDefaultLabel(form) {
@@ -827,6 +3056,7 @@ function resetSubmitLabel(form) {
 function resetProjectForm(hide = true) {
   if (!projectForm) return;
   projectForm.reset();
+  applyProjectLocationToForm('', '');
   projectFormMode = null;
   const managerSelect = projectForm.elements.namedItem('manager');
   populateStaffSelect(managerSelect, currentUser?.fullName ?? '');
@@ -934,6 +3164,7 @@ function openProjectForm(mode, project) {
 
   if (mode === 'create') {
     projectForm.reset();
+    applyProjectLocationToForm('', '');
     const today = new Date().toISOString().slice(0, 10);
     const managerSelect = projectForm.elements.namedItem('manager');
     const defaultManager = currentUser?.fullName ?? '';
@@ -941,7 +3172,7 @@ function openProjectForm(mode, project) {
     setFormValue(projectForm, 'projectId', '');
     setFormValue(projectForm, 'projectName', '');
     setFormValue(projectForm, 'projectCategory', '');
-    setFormValue(projectForm, 'projectCity', '');
+    setFormValue(projectForm, 'housingUnits', '');
     setFormValue(projectForm, 'addedAt', today);
     setFormValue(projectForm, 'updatedAt', today);
     setFormValue(projectForm, 'contractor', '');
@@ -960,7 +3191,8 @@ function openProjectForm(mode, project) {
     setFormValue(projectForm, 'projectId', project.id);
     setFormValue(projectForm, 'projectName', project.name);
     setFormValue(projectForm, 'projectCategory', project.category);
-    setFormValue(projectForm, 'projectCity', project.city);
+    applyProjectLocationToForm(project.city, project.district);
+    setFormValue(projectForm, 'housingUnits', normalizeHousingUnits(project.housingUnits));
     setFormValue(projectForm, 'addedAt', project.addedAt);
     setFormValue(projectForm, 'updatedAt', project.updatedAt);
     setFormValue(projectForm, 'contractor', project.contractor);
@@ -976,19 +3208,86 @@ function openProjectForm(mode, project) {
   }
 }
 
-function renderProjectTable(filterText = '') {
-  const query = filterText.toLocaleLowerCase('tr-TR');
+function getActiveProjectFilters() {
+  return {
+    project: projectSearch?.value ?? '',
+    construction: constructionSearch?.value ?? '',
+    mechanical: mechanicalSearch?.value ?? '',
+  };
+}
+
+function renderProjectTable(filterInput) {
+  const activeFilters = getActiveProjectFilters();
+  let requestedFilters;
+
+  if (typeof filterInput === 'string') {
+    requestedFilters = { ...activeFilters, project: filterInput };
+  } else if (filterInput && typeof filterInput === 'object') {
+    requestedFilters = { ...activeFilters, ...filterInput };
+  } else {
+    requestedFilters = activeFilters;
+  }
+
+  const queries = {
+    project: normalizeSearchQuery(requestedFilters.project),
+    construction: normalizeSearchQuery(requestedFilters.construction),
+    mechanical: normalizeSearchQuery(requestedFilters.mechanical),
+  };
+
   const filteredProjects = projectStore.filter((project) => {
-    const text = `${project.name} ${project.city} ${project.category}`.toLocaleLowerCase('tr-TR');
-    return text.includes(query);
+    const housingText = normalizeHousingUnits(project.housingUnits);
+    const generalText = [
+      project.id,
+      project.name,
+      project.city,
+      project.district,
+      project.category,
+      project.contractor,
+      project.mechanical,
+      project.manager,
+      project.scope,
+      project.responsibleInstitution,
+      housingText,
+      project.channelName,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLocaleLowerCase('tr-TR');
+
+    if (queries.project && !generalText.includes(queries.project)) {
+      return false;
+    }
+
+    if (queries.construction) {
+      const contractorText = normalizeSearchQuery(project.contractor);
+      if (!contractorText || !contractorText.includes(queries.construction)) {
+        return false;
+      }
+    }
+
+    if (queries.mechanical) {
+      const mechanicalText = normalizeSearchQuery(project.mechanical);
+      if (!mechanicalText || !mechanicalText.includes(queries.mechanical)) {
+        return false;
+      }
+    }
+
+    return true;
   });
 
+  let normalizedDuringRender = false;
   projectTableBody.innerHTML = filteredProjects
     .map((project) => {
       const statusClass = project.channel === 'direct' ? 'status-direct' : 'status-dealer';
       const channelLabel = project.channel === 'direct' ? 'Doğrudan' : `Bayi (${project.channelName ?? 'Belirtilmedi'})`;
       const salesStatus = deriveSalesStatus(project);
       project.salesStatus = salesStatus;
+      const normalizedHousing = normalizeHousingUnits(project.housingUnits);
+      if (project.housingUnits !== normalizedHousing) {
+        project.housingUnits = normalizedHousing;
+        normalizedDuringRender = true;
+      }
+      const housingLabel = formatHousingUnits(project.housingUnits);
 
       return `
         <tr data-project-id="${project.id}" class="${project.id === selectedProjectId ? 'is-active' : ''}">
@@ -996,7 +3295,9 @@ function renderProjectTable(filterText = '') {
           <td>${formatDisplayDate(project.addedAt)}</td>
           <td>${formatDisplayDate(project.updatedAt)}</td>
           <td>${project.category}</td>
-          <td>${project.city}</td>
+          <td>${escapeHtml(project.city || '')}</td>
+          <td>${escapeHtml(project.district || '')}</td>
+          <td>${escapeHtml(housingLabel)}</td>
           <td>${project.name}</td>
           <td>${project.contractor}</td>
           <td>${project.mechanical}</td>
@@ -1009,8 +3310,13 @@ function renderProjectTable(filterText = '') {
 
   const totals = { TOKİ: 0, 'Emlak Konut': 0, Özel: 0, Kamu: 0 };
   projectStore.forEach((project) => {
-    if (totals[project.category] !== undefined) {
-      totals[project.category] += 1;
+    const category = normalizeProjectCategory(project.category);
+    if (category !== project.category) {
+      project.category = category;
+      normalizedDuringRender = true;
+    }
+    if (totals[category] !== undefined) {
+      totals[category] += 1;
     }
   });
 
@@ -1018,6 +3324,519 @@ function renderProjectTable(filterText = '') {
   counts['Emlak Konut'].textContent = totals['Emlak Konut'];
   counts['Özel'].textContent = totals['Özel'];
   counts['Kamu'].textContent = totals['Kamu'];
+
+  renderProjectReports();
+  renderProjectMap();
+
+  if (normalizedDuringRender) {
+    schedulePersistState();
+  }
+}
+
+function normalizeCityKey(city) {
+  if (city === undefined || city === null) return '';
+  const text = String(city).replace(/[()]/g, ' ');
+  const upper = text.toLocaleUpperCase('tr-TR');
+  return upper.replace(/\s+/g, ' ').trim().replace(/\s+(İLİ|MERKEZ)$/u, '');
+}
+
+function getProjectLocationKey(project) {
+  if (!project || typeof project !== 'object') return '';
+  const city = sanitizeText(project.city);
+  const district = sanitizeText(project.district);
+  const parts = [];
+  if (district) parts.push(district);
+  if (city) parts.push(city);
+  if (!parts.length) return '';
+  return normalizeCityKey(parts.join(' '));
+}
+
+function applyCoordinatesToProjects(locationKey, coordinates, source = 'geocode') {
+  if (!locationKey) return false;
+  const normalized = normalizeCoordinates(coordinates);
+  if (!normalized) return false;
+  const entry = { lat: normalized.lat, lng: normalized.lng, source };
+  coordinateCache.set(locationKey, entry);
+  let updated = false;
+  projectStore.forEach((project) => {
+    if (getProjectLocationKey(project) === locationKey) {
+      project.coordinates = { ...entry };
+      updated = true;
+    }
+  });
+  return updated;
+}
+
+function queueProjectGeocode(project) {
+  if (!project || typeof window === 'undefined' || typeof window.fetch !== 'function') return;
+  const locationKey = getProjectLocationKey(project);
+  if (!locationKey) return;
+  if (pendingGeocodeLookups.has(locationKey)) return;
+  if (coordinateCache.has(locationKey)) return;
+
+  const district = sanitizeText(project.district);
+  const city = sanitizeText(project.city);
+  const queryParts = [];
+  if (district) queryParts.push(district);
+  if (city && !district.toLocaleUpperCase('tr-TR').includes(city.toLocaleUpperCase('tr-TR'))) {
+    queryParts.push(city);
+  }
+  queryParts.push('Türkiye');
+  const query = encodeURIComponent(queryParts.join(' '));
+  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=tr&countrycodes=tr&q=${query}`;
+
+  const lookup = window
+    .fetch(url, {
+      headers: {
+        Accept: 'application/json',
+      },
+    })
+    .then((response) => {
+      if (!response.ok) return null;
+      return response.json();
+    })
+    .then((data) => {
+      if (!Array.isArray(data) || !data.length) {
+        coordinateCache.set(locationKey, null);
+        return;
+      }
+      const [result] = data;
+      const lat = Number(result?.lat);
+      const lng = Number(result?.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        coordinateCache.set(locationKey, null);
+        return;
+      }
+      const updated = applyCoordinatesToProjects(locationKey, { lat, lng }, 'geocode');
+      if (updated) {
+        schedulePersistState();
+        renderProjectMap();
+      }
+    })
+    .catch((error) => {
+      console.error('District geocode failed', error);
+      coordinateCache.set(locationKey, null);
+    })
+    .finally(() => {
+      pendingGeocodeLookups.delete(locationKey);
+    });
+
+  pendingGeocodeLookups.set(locationKey, lookup);
+}
+
+function applyCachedCoordinatesToProjects() {
+  projectStore.forEach((project) => {
+    if (!project) return;
+    const existing = normalizeCoordinates(project.coordinates);
+    if (existing) {
+      project.coordinates = { ...existing, source: existing.source ?? 'saved' };
+      return;
+    }
+    const key = getProjectLocationKey(project);
+    if (!key) return;
+    if (!coordinateCache.has(key)) return;
+    const cached = normalizeCoordinates(coordinateCache.get(key));
+    if (!cached) return;
+    project.coordinates = { ...cached, source: cached.source ?? 'cache' };
+  });
+}
+
+function findCityCoordinates(city) {
+  const key = normalizeCityKey(city);
+  if (!key) return null;
+  if (TURKEY_CITY_COORDINATES[key]) {
+    return TURKEY_CITY_COORDINATES[key];
+  }
+  const pieces = key
+    .split(/[\\/,-]/u)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  for (const part of pieces) {
+    if (TURKEY_CITY_COORDINATES[part]) {
+      return TURKEY_CITY_COORDINATES[part];
+    }
+  }
+  for (const [name, coords] of Object.entries(TURKEY_CITY_COORDINATES)) {
+    if (key.includes(name)) {
+      return coords;
+    }
+  }
+  return null;
+}
+
+function findProjectCoordinates(project) {
+  if (!project) return null;
+  const stored = normalizeCoordinates(project.coordinates);
+  if (stored) {
+    return stored;
+  }
+  const cacheKey = getProjectLocationKey(project);
+  if (cacheKey && coordinateCache.has(cacheKey)) {
+    const cached = normalizeCoordinates(coordinateCache.get(cacheKey));
+    if (cached) {
+      return cached;
+    }
+  }
+  const city = sanitizeText(project.city);
+  const district = sanitizeText(project.district);
+  if (district) {
+    const districtWithCity = [district, city].filter(Boolean).join(' ');
+    const districtCoords = findCityCoordinates(districtWithCity);
+    if (districtCoords) return districtCoords;
+    const directDistrict = findCityCoordinates(district);
+    if (directDistrict) return directDistrict;
+  }
+  if (city) {
+    return findCityCoordinates(city);
+  }
+  return null;
+}
+
+function formatProjectLocation(project) {
+  if (!project) return '';
+  const city = sanitizeText(project.city);
+  const district = sanitizeText(project.district);
+  if (city && district) {
+    return `${district} / ${city}`;
+  }
+  return city || district || '';
+}
+
+function toLatLng(coordinates) {
+  if (!coordinates) return null;
+  if (Array.isArray(coordinates)) {
+    const [lat, lng] = coordinates;
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return { lat, lng };
+    }
+    return null;
+  }
+  if (typeof coordinates === 'object' && coordinates !== null) {
+    const { lat, lng } = coordinates;
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return { lat, lng };
+    }
+  }
+  return null;
+}
+
+function showMapError(message) {
+  if (!mapContainer) return;
+  const fallback = 'Harita bileşeni yüklenemedi.';
+  const composed = message ? `${fallback} (${message})` : fallback;
+  mapContainer.innerHTML = `<p class="muted">${escapeHtml(composed)}</p>`;
+  mapContainer.dataset.error = 'true';
+  if (mapProjectList) {
+    mapProjectList.innerHTML = `<li class="muted">${escapeHtml(composed)}</li>`;
+  }
+}
+
+function clearMapError() {
+  if (mapContainer?.dataset?.error) {
+    mapContainer.innerHTML = '';
+    delete mapContainer.dataset.error;
+  }
+}
+
+function destroyProjectMap() {
+  if (activeMapPopup?.remove) {
+    activeMapPopup.remove();
+  }
+  activeMapPopup = null;
+  projectMarkers.forEach(({ marker }) => {
+    if (marker?.remove) {
+      marker.remove();
+    }
+  });
+  projectMarkers.clear();
+  if (projectMap) {
+    projectMap.off();
+    projectMap.remove();
+    projectMap = null;
+    projectMapTileLayer = null;
+  }
+  if (mapContainer) {
+    mapContainer.innerHTML = '';
+    delete mapContainer.dataset.error;
+  }
+  if (mapProjectList) {
+    mapProjectList.innerHTML = '';
+  }
+}
+
+function renderProjectMap() {
+  if (!mapContainer) return;
+
+  if (typeof window === 'undefined' || !window.L) {
+    showMapError('Harita kütüphanesi yüklenemedi.');
+    return;
+  }
+
+  clearMapError();
+
+  if (!projectMap) {
+    mapContainer.innerHTML = '';
+    projectMap = window.L.map(mapContainer, {
+      zoomControl: true,
+    });
+    projectMap.setView([MAP_DEFAULT_CENTER.lat, MAP_DEFAULT_CENTER.lng], MAP_DEFAULT_ZOOM);
+    projectMap.on('popupclose', () => {
+      activeMapPopup = null;
+    });
+  }
+
+  if (!projectMapTileLayer) {
+    projectMapTileLayer = window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '&copy; OpenStreetMap katkıda bulunanlar',
+    });
+    projectMapTileLayer.addTo(projectMap);
+  }
+
+  if (activeMapPopup?.remove) {
+    activeMapPopup.remove();
+    activeMapPopup = null;
+  }
+
+  projectMarkers.forEach(({ marker }) => {
+    if (marker?.remove) {
+      marker.remove();
+    }
+  });
+  projectMarkers.clear();
+
+  const entries = projectStore
+    .map((project, index) => {
+      const coordinates = findProjectCoordinates(project);
+      const position = toLatLng(coordinates);
+      if (!position) {
+        queueProjectGeocode(project);
+        return null;
+      }
+      const key = project.id?.trim() || `map-${index}`;
+      return { project, position, markerKey: key };
+    })
+    .filter(Boolean);
+
+  const bounds = [];
+  let hasBounds = false;
+
+  entries.forEach(({ project, position, markerKey }) => {
+    const marker = window.L.marker([position.lat, position.lng], {
+      title: project.name || project.id || 'Proje',
+    }).addTo(projectMap);
+
+    const housingLabel = formatHousingUnits(project.housingUnits);
+    const locationLabel = formatProjectLocation(project);
+    const metaParts = [locationLabel, project.category]
+      .filter(Boolean)
+      .map((value) => escapeHtml(value));
+    const details = [
+      `<strong>${escapeHtml(project.name || project.id || 'PROJE')}</strong>`,
+      metaParts.length ? `<span>${metaParts.join(' • ')}</span>` : '',
+      project.id ? `<span>Kod: ${escapeHtml(project.id)}</span>` : '',
+      `<span>Konut: ${escapeHtml(housingLabel)}</span>`,
+      project.contractor ? `<span>Yüklenici: ${escapeHtml(project.contractor)}</span>` : '',
+      project.mechanical ? `<span>Mekanik: ${escapeHtml(project.mechanical)}</span>` : '',
+    ].filter(Boolean);
+
+    marker.bindPopup(`<div class="map-popup">${details.join('<br />')}</div>`);
+    marker.on('popupopen', (event) => {
+      activeMapPopup = event.popup;
+    });
+
+    bounds.push([position.lat, position.lng]);
+    hasBounds = true;
+    projectMarkers.set(markerKey, { marker });
+  });
+
+  if (hasBounds) {
+    const leafletBounds = window.L.latLngBounds(bounds);
+    projectMap.fitBounds(leafletBounds, { padding: [48, 48] });
+    const zoom = projectMap.getZoom();
+    if (zoom && zoom > 11) {
+      projectMap.setZoom(11);
+    }
+  } else {
+    projectMap.setView([MAP_DEFAULT_CENTER.lat, MAP_DEFAULT_CENTER.lng], MAP_DEFAULT_ZOOM);
+  }
+
+  if (mapProjectList) {
+    if (!entries.length) {
+      mapProjectList.innerHTML = '<li class="muted">Konumu belirlenen proje bulunmuyor.</li>';
+    } else {
+      const items = [...entries]
+        .sort((a, b) => (a.project.name || '').localeCompare(b.project.name || '', 'tr'))
+        .map(({ project, markerKey }) => {
+          const locationLabel = formatProjectLocation(project);
+          const meta = [locationLabel, project.category]
+            .filter(Boolean)
+            .map((value) => escapeHtml(value));
+          const subtitle = meta.length ? meta.join(' • ') : 'Bilgi bulunmuyor';
+          return `
+            <li>
+              <button type="button" data-project-id="${escapeHtml(markerKey)}">
+                <span class="map-project__name">${escapeHtml(project.name || project.id || 'PROJE')}</span>
+                <span class="map-project__meta">${subtitle}</span>
+              </button>
+            </li>
+          `;
+        })
+        .join('');
+      mapProjectList.innerHTML = items;
+    }
+  }
+
+  if (currentView === 'project-maps') {
+    window.requestAnimationFrame(() => {
+      projectMap?.invalidateSize();
+    });
+  }
+}
+
+function renderProjectReports() {
+  if (!reportSummaryCards && !reportCategoryList && !reportChannelList && !reportCityList) {
+    return;
+  }
+
+  const totalProjects = projectStore.length;
+  const totalHousingUnits = projectStore.reduce(
+    (sum, project) => sum + getHousingUnitTotal(project.housingUnits),
+    0,
+  );
+  const averageHousing = totalProjects ? Math.round(totalHousingUnits / totalProjects) : 0;
+
+  if (reportSummaryCards) {
+    const summaryCards = [
+      {
+        title: 'Toplam Proje',
+        metric: numberFormatter.format(totalProjects),
+        hint: 'Aktif kayıt sayısı',
+      },
+      {
+        title: 'Toplam Konut',
+        metric: numberFormatter.format(totalHousingUnits),
+        hint: 'Projelerdeki toplam konut adedi',
+      },
+      {
+        title: 'Ortalama Konut',
+        metric: totalProjects ? numberFormatter.format(averageHousing) : '-',
+        hint: 'Proje başına ortalama konut',
+      },
+    ];
+
+    reportSummaryCards.innerHTML = summaryCards
+      .map(
+        (card) => `
+          <article class="report-card">
+            <h3>${card.title}</h3>
+            <p class="report-card__metric">${card.metric}</p>
+            <p class="muted">${card.hint}</p>
+          </article>
+        `,
+      )
+      .join('');
+  }
+
+  if (reportCategoryList) {
+    const categoryOrder = ['TOKİ', 'Emlak Konut', 'Özel', 'Kamu'];
+    const categoryTotals = categoryOrder.reduce((acc, category) => {
+      acc[category] = 0;
+      return acc;
+    }, {});
+
+    projectStore.forEach((project) => {
+      const category = normalizeProjectCategory(project.category);
+      if (!(category in categoryTotals)) {
+        categoryTotals[category] = 0;
+      }
+      categoryTotals[category] += 1;
+    });
+
+    const orderedEntries = [
+      ...categoryOrder.map((category) => [category, categoryTotals[category] ?? 0]),
+      ...Object.keys(categoryTotals)
+        .filter((category) => !categoryOrder.includes(category))
+        .map((category) => [category, categoryTotals[category]]),
+    ];
+
+    reportCategoryList.innerHTML = orderedEntries
+      .map(([category, count]) => {
+        const share = totalProjects ? Math.round((count / totalProjects) * 100) : 0;
+        return `
+          <li>
+            <span class="report-list__label">${escapeHtml(category)}</span>
+            <span class="report-list__value">${numberFormatter.format(count)} proje • %${share}</span>
+          </li>
+        `;
+      })
+      .join('');
+  }
+
+  if (reportChannelList) {
+    const channelMetrics = {
+      direct: { count: 0, housing: 0 },
+      dealer: { count: 0, housing: 0 },
+    };
+
+    projectStore.forEach((project) => {
+      const key = project.channel === 'dealer' ? 'dealer' : 'direct';
+      channelMetrics[key].count += 1;
+      channelMetrics[key].housing += getHousingUnitTotal(project.housingUnits);
+    });
+
+    const channelItems = [
+      { key: 'direct', label: 'Doğrudan' },
+      { key: 'dealer', label: 'Bayi / Kanal' },
+    ]
+      .map(({ key, label }) => {
+        const data = channelMetrics[key];
+        return `
+          <li>
+            <span class="report-list__label">${label}</span>
+            <span class="report-list__value">${numberFormatter.format(data.count)} proje • ${numberFormatter.format(data.housing)} konut</span>
+          </li>
+        `;
+      })
+      .join('');
+
+    reportChannelList.innerHTML = channelItems;
+  }
+
+  if (reportCityList) {
+    const cityMetrics = new Map();
+    projectStore.forEach((project) => {
+      const city = sanitizeText(project.city);
+      if (!city) return;
+      if (!cityMetrics.has(city)) {
+        cityMetrics.set(city, { count: 0, housing: 0 });
+      }
+      const entry = cityMetrics.get(city);
+      entry.count += 1;
+      entry.housing += getHousingUnitTotal(project.housingUnits);
+    });
+
+    const topCities = Array.from(cityMetrics.entries())
+      .map(([city, stats]) => ({ city, ...stats }))
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return b.housing - a.housing;
+      })
+      .slice(0, 5);
+
+    reportCityList.innerHTML = topCities.length
+      ? topCities
+          .map(
+            ({ city, count, housing }) => `
+              <li>
+                <span class="report-list__label">${escapeHtml(city)}</span>
+                <span class="report-list__value">${numberFormatter.format(count)} proje • ${numberFormatter.format(housing)} konut</span>
+              </li>
+            `,
+          )
+          .join('')
+      : '<li class="muted">İl bilgisi bulunan proje yok.</li>';
+  }
 }
 
 function populateProjectSelector() {
@@ -1039,6 +3858,7 @@ function renderProjectDetail(projectId) {
     if (projectSelector) projectSelector.value = '';
     clearProjectDetails();
     renderProjectTable(projectSearch?.value ?? '');
+    schedulePersistState();
     return;
   }
 
@@ -1050,11 +3870,16 @@ function renderProjectDetail(projectId) {
 
   const salesStatus = deriveSalesStatus(project);
   project.salesStatus = salesStatus;
+  project.category = normalizeProjectCategory(project.category);
+  project.housingUnits = normalizeHousingUnits(project.housingUnits);
+  const housingUnits = formatHousingUnits(project.housingUnits);
 
   projectInfo.innerHTML = `
     <dt>Proje Kodu</dt><dd>${project.id}</dd>
     <dt>Kategori</dt><dd>${project.category}</dd>
-    <dt>İl</dt><dd>${project.city}</dd>
+    <dt>İl</dt><dd>${escapeHtml(project.city || '-')}</dd>
+    <dt>İlçe</dt><dd>${escapeHtml(project.district || '-')}</dd>
+    <dt>Konut Sayısı</dt><dd>${escapeHtml(housingUnits)}</dd>
     <dt>Eklenme Tarihi</dt><dd>${formatDisplayDate(project.addedAt)}</dd>
     <dt>Son Güncelleme</dt><dd>${formatDisplayDate(project.updatedAt)}</dd>
     <dt>Yüklenici</dt><dd>${project.contractor || '-'}</dd>
@@ -1083,6 +3908,7 @@ function renderProjectDetail(projectId) {
   renderFirmProfileByName('construction', project.contractor);
   renderFirmProfileByName('mechanical', project.mechanical);
   renderProjectTable(projectSearch?.value ?? '');
+  schedulePersistState();
 }
 
 function clearProjectDetails() {
@@ -1146,16 +3972,51 @@ function applyImportedProjectRows(rows) {
     throw new Error('Excel dosyası boş görünüyor.');
   }
 
-  const headerRow = Array.isArray(rows[0]) ? rows[0] : Object.values(rows[0] ?? {});
-  const headerFields = headerRow.map((cell) => resolveProjectField(cell));
+  const columnCount = rows.reduce((max, rawRow) => {
+    const cells = Array.isArray(rawRow) ? rawRow : Object.values(rawRow ?? {});
+    return Math.max(max, cells.length);
+  }, 0);
 
-  if (!headerFields.some(Boolean)) {
+  if (!columnCount) {
+    throw new Error('Excel dosyasında aktarılacak sütun bulunamadı.');
+  }
+
+  let headerRow = Array.isArray(rows[0]) ? rows[0] : Object.values(rows[0] ?? {});
+  if (headerRow.length < columnCount) {
+    headerRow = [...headerRow, ...Array(columnCount - headerRow.length).fill('')];
+  }
+
+  let headerFields = headerRow.map((cell) => resolveProjectField(cell));
+  if (headerFields.length < columnCount) {
+    headerFields = [...headerFields, ...Array(columnCount - headerFields.length).fill(null)];
+  }
+
+  const assignedFields = new Set(headerFields.filter(Boolean));
+  const dataStartIndex = assignedFields.size ? 1 : 0;
+
+  for (let columnIndex = 0; columnIndex < columnCount; columnIndex += 1) {
+    if (headerFields[columnIndex]) continue;
+    const inferred = inferProjectFieldFromData(
+      rows,
+      columnIndex,
+      dataStartIndex,
+      assignedFields,
+      dataStartIndex === 1 ? headerRow[columnIndex] : ''
+    );
+    if (inferred) {
+      headerFields[columnIndex] = inferred;
+      assignedFields.add(inferred);
+    }
+  }
+
+  if (!assignedFields.size) {
     throw new Error('Excel başlıkları tanınmadı. Lütfen şablonu güncelleyin.');
   }
 
   const today = new Date().toISOString().slice(0, 10);
   let created = 0;
   let updated = 0;
+  let removed = 0;
   const processedIds = [];
   const processedSet = new Set();
   let refreshConstruction = false;
@@ -1167,7 +4028,7 @@ function applyImportedProjectRows(rows) {
     processedIds.push(id);
   };
 
-  for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
+  for (let rowIndex = dataStartIndex; rowIndex < rows.length; rowIndex += 1) {
     const rawRow = rows[rowIndex];
     const cells = Array.isArray(rawRow) ? rawRow : Object.values(rawRow ?? {});
     if (!cells.length) continue;
@@ -1181,6 +4042,8 @@ function applyImportedProjectRows(rows) {
         record[field] = normalizeDateCell(cell);
       } else if (field === 'channel') {
         record[field] = normalizeChannelValue(cell);
+      } else if (field === 'housingUnits') {
+        record[field] = normalizeHousingUnits(cell);
       } else {
         record[field] = sanitizeText(cell);
       }
@@ -1203,8 +4066,10 @@ function applyImportedProjectRows(rows) {
     const payload = {
       id,
       name: name || id,
-      category: sanitizeText(record.category) || 'Özel',
+      category: normalizeProjectCategory(record.category),
       city: sanitizeText(record.city),
+      district: sanitizeText(record.district),
+      housingUnits: normalizeHousingUnits(record.housingUnits),
       addedAt: record.addedAt || today,
       updatedAt: record.updatedAt || record.addedAt || today,
       contractor: sanitizeText(record.contractor),
@@ -1225,9 +4090,12 @@ function applyImportedProjectRows(rows) {
 
     const existing = getProject(payload.id);
     if (existing) {
+      const previousKey = getProjectLocationKey(existing);
       existing.name = payload.name;
       existing.category = payload.category;
       existing.city = payload.city;
+      existing.district = payload.district;
+      existing.housingUnits = payload.housingUnits;
       existing.addedAt = payload.addedAt;
       existing.updatedAt = payload.updatedAt;
       existing.contractor = payload.contractor;
@@ -1244,6 +4112,10 @@ function applyImportedProjectRows(rows) {
       }
       ensureProjectCollections(existing);
       existing.salesStatus = deriveSalesStatus(existing);
+      const nextKey = getProjectLocationKey(existing);
+      if (previousKey !== nextKey) {
+        existing.coordinates = null;
+      }
       updated += 1;
       trackProcessedId(existing.id);
     } else {
@@ -1252,6 +4124,9 @@ function applyImportedProjectRows(rows) {
         name: payload.name,
         category: payload.category,
         city: payload.city,
+        district: payload.district,
+        coordinates: null,
+        housingUnits: payload.housingUnits,
         addedAt: payload.addedAt,
         updatedAt: payload.updatedAt,
         contractor: payload.contractor,
@@ -1287,11 +4162,26 @@ function applyImportedProjectRows(rows) {
     }
   }
 
+  if (processedSet.size) {
+    for (let index = projectStore.length - 1; index >= 0; index -= 1) {
+      const project = projectStore[index];
+      if (processedSet.has(project.id)) {
+        continue;
+      }
+      projectStore.splice(index, 1);
+      removed += 1;
+      if (selectedProjectId === project.id) {
+        selectedProjectId = null;
+      }
+    }
+  }
+
   if (created === 0 && updated === 0) {
     throw new Error('Excel dosyasında aktarılacak uygun proje kaydı bulunamadı.');
   }
 
   populateProjectSelector();
+  applyCachedCoordinatesToProjects();
   const searchValue = projectSearch?.value ?? '';
   renderProjectTable(searchValue);
 
@@ -1313,7 +4203,8 @@ function applyImportedProjectRows(rows) {
   }
 
   renderAssignments();
-  return { created, updated };
+  schedulePersistState();
+  return { created, updated, removed };
 }
 
 function exportProjectsToExcel() {
@@ -1332,6 +4223,8 @@ function exportProjectsToExcel() {
       'Proje Adı': project.name,
       Kategori: project.category,
       'İl': project.city,
+      'İlçe': project.district,
+      'Konut Sayısı': normalizeHousingUnits(project.housingUnits),
       'Eklenme Tarihi': project.addedAt,
       'Son Güncelleme': project.updatedAt,
       'Bağlantı Türü': project.channel === 'dealer' ? 'Bayi' : 'Doğrudan',
@@ -1363,10 +4256,13 @@ function exportProjectsToExcel() {
         return { wch: 32 };
       case 'Kategori':
       case 'İl':
+      case 'İlçe':
         return { wch: 18 };
       case 'Eklenme Tarihi':
       case 'Son Güncelleme':
         return { wch: 18 };
+      case 'Konut Sayısı':
+        return { wch: 16 };
       case 'Bağlantı Türü':
         return { wch: 20 };
       case 'Bayi / Kanal':
@@ -1712,6 +4608,9 @@ function renderLogList(target, items, type, templateFn) {
 }
 
 function activateView(target) {
+  if (!target) return;
+  currentView = target;
+
   navLinks.forEach((link) => {
     const isActive = link.dataset.target === target;
     link.classList.toggle('active', isActive);
@@ -1720,6 +4619,12 @@ function activateView(target) {
   dashboards.forEach((section) => {
     section.classList.toggle('hidden', section.dataset.view !== target);
   });
+
+  if (target === 'project-maps') {
+    renderProjectMap();
+  } else if (target === 'reporting') {
+    renderProjectReports();
+  }
 }
 
 function openFirmCreationForm(type) {
@@ -1783,7 +4688,13 @@ function renderFirmTable(target, items, searchText = '') {
   if (!target) return;
   const query = searchText.toLocaleLowerCase('tr-TR');
   target.innerHTML = items
-    .filter((item) => (item.name ?? '').toLocaleLowerCase('tr-TR').includes(query))
+    .filter((item) => {
+      const text = [item.name, item.city, item.contact, item.status, item.owner]
+        .filter(Boolean)
+        .join(' ')
+        .toLocaleLowerCase('tr-TR');
+      return text.includes(query);
+    })
     .map((firm) => {
       const name = firm.name ?? '';
       const city = firm.city?.trim() || '-';
@@ -1817,7 +4728,7 @@ function buildFirmProfile(firm, type, relatedProjects) {
           (project) => `
             <li>
               <span>${escapeHtml(project.id)}</span>
-              <span>${escapeHtml(project.name)} • ${escapeHtml(project.city || '-')} (${escapeHtml(project.category || '-')}) • ${escapeHtml(project.salesStatus || '-')}</span>
+              <span>${escapeHtml(project.name)} • ${escapeHtml(formatProjectLocation(project) || '-')} (${escapeHtml(project.category || '-')}) • ${escapeHtml(project.salesStatus || '-')}</span>
             </li>
           `,
         )
@@ -1986,6 +4897,7 @@ function deleteRequest(requestId) {
     resetRequestForm();
   }
   renderRequests();
+  schedulePersistState();
   return true;
 }
 
@@ -2033,6 +4945,7 @@ function setupForms() {
       clearProjectDetails();
     }
     renderAssignments();
+    schedulePersistState();
   });
 
   projectSelector?.addEventListener('change', (event) => {
@@ -2055,6 +4968,8 @@ function setupForms() {
       name: formData.get('projectName')?.trim() ?? '',
       category: formData.get('projectCategory') ?? '',
       city: formData.get('projectCity')?.trim() ?? '',
+      district: formData.get('projectDistrict')?.trim() ?? '',
+      housingUnits: normalizeHousingUnits(formData.get('housingUnits')),
       addedAt: formData.get('addedAt') || '',
       updatedAt: formData.get('updatedAt') || '',
       contractor: formData.get('contractor')?.trim() ?? '',
@@ -2073,6 +4988,11 @@ function setupForms() {
     if (!payload.addedAt) payload.addedAt = today;
     if (!payload.updatedAt) payload.updatedAt = payload.addedAt;
 
+    payload.category = normalizeProjectCategory(payload.category);
+    if (payload.channel !== 'dealer') {
+      payload.channelName = '';
+    }
+
     if (projectFormMode === 'edit') {
       const originalId = formData.get('originalId') || selectedProjectId;
       const project = getProject(originalId);
@@ -2081,10 +5001,13 @@ function setupForms() {
         window.alert('Bu proje kodu zaten kullanılıyor.');
         return;
       }
+      const previousLocationKey = getProjectLocationKey(project);
       project.id = projectId;
       project.name = payload.name;
       project.category = payload.category;
       project.city = payload.city;
+      project.district = payload.district;
+      project.housingUnits = payload.housingUnits;
       project.addedAt = payload.addedAt;
       project.updatedAt = payload.updatedAt;
       project.contractor = payload.contractor;
@@ -2097,6 +5020,10 @@ function setupForms() {
       project.responsibleInstitution = payload.responsibleInstitution;
       project.assignedTeam = payload.assignedTeam;
       project.progress = payload.progress;
+      const nextLocationKey = getProjectLocationKey(project);
+      if (previousLocationKey !== nextLocationKey) {
+        project.coordinates = null;
+      }
       selectedProjectId = project.id;
     } else {
       if (getProject(projectId)) {
@@ -2110,6 +5037,9 @@ function setupForms() {
         updatedAt: payload.updatedAt,
         category: payload.category,
         city: payload.city,
+        district: payload.district,
+        coordinates: null,
+        housingUnits: payload.housingUnits,
         name: payload.name,
         contractor: payload.contractor,
         mechanical: payload.mechanical,
@@ -2136,6 +5066,7 @@ function setupForms() {
     renderProjectTable(projectSearch?.value ?? '');
     renderProjectDetail(selectedProjectId);
     renderAssignments();
+    schedulePersistState();
   });
 
   productForm?.addEventListener('submit', (event) => {
@@ -2163,6 +5094,7 @@ function setupForms() {
 
     resetProductForm();
     renderProducts(project);
+    schedulePersistState();
   });
 
   productForm?.querySelector('[data-action="cancel-product"]')?.addEventListener('click', () => {
@@ -2191,6 +5123,7 @@ function setupForms() {
 
     resetTimelineForm();
     renderTimeline(project);
+    schedulePersistState();
   });
 
   timelineForm?.querySelector('[data-action="cancel-timeline"]')?.addEventListener('click', () => {
@@ -2257,6 +5190,7 @@ function setupForms() {
 
     resetRequestForm();
     renderRequests();
+    schedulePersistState();
   });
 
   requestForm?.querySelector('[data-action="cancel-request"]')?.addEventListener('click', () => {
@@ -2336,6 +5270,7 @@ function setupForms() {
       resetLogForm(type);
       renderLogs(project);
       refreshProjectStatus(project);
+      schedulePersistState();
     });
 
     form.querySelector('[data-action="cancel-log"]')?.addEventListener('click', () => {
@@ -2369,6 +5304,7 @@ function setupForms() {
           resetProductForm();
         }
         renderProducts(project);
+        schedulePersistState();
       }
     });
   }
@@ -2397,6 +5333,7 @@ function setupForms() {
         resetTimelineForm();
       }
       renderTimeline(project);
+      schedulePersistState();
     }
   });
 
@@ -2440,6 +5377,7 @@ function setupForms() {
         }
         renderLogs(project);
         refreshProjectStatus(project);
+        schedulePersistState();
       }
     });
   });
@@ -2452,6 +5390,27 @@ function setupNavigation() {
     link.addEventListener('click', () => {
       activateView(link.dataset.target);
     });
+  });
+}
+
+function setupMapSection() {
+  mapProjectList?.addEventListener('click', (event) => {
+    const button = event.target instanceof HTMLElement ? event.target.closest('button[data-project-id]') : null;
+    if (!button) return;
+    const markerKey = button.dataset.projectId;
+    if (!markerKey) return;
+    if (!projectMap) {
+      renderProjectMap();
+    }
+    const entry = projectMarkers.get(markerKey);
+    if (!entry || !projectMap) return;
+    const { marker } = entry;
+    const position = marker?.getLatLng?.();
+    if (!position) return;
+    const currentZoom = projectMap.getZoom() ?? MAP_DEFAULT_ZOOM;
+    const targetZoom = Math.max(currentZoom, 7);
+    projectMap.flyTo(position, targetZoom, { duration: 0.35 });
+    marker.openPopup();
   });
 }
 
@@ -2547,6 +5506,7 @@ function setupFirmProfileForms() {
       refreshFirmTable(firmType);
       renderAssignments();
       showFormFeedback(form, 'Bilgiler güncellendi');
+      schedulePersistState();
     });
 
     profile?.addEventListener('click', (event) => {
@@ -2608,6 +5568,7 @@ function setupFirmProfileForms() {
       renderAssignments();
       renderFirmProfilePanel(firmType, firm);
       showFormFeedback(formElement, created ? 'Firma kaydı oluşturuldu' : 'Firma bilgileri güncellendi');
+      schedulePersistState();
 
       if (created) {
         formElement.reset();
@@ -2622,15 +5583,19 @@ function setupFirmProfileForms() {
 }
 
 function setupSearch() {
-  projectSearch?.addEventListener('input', (event) => {
-    renderProjectTable(event.target.value);
-  });
+  const refreshProjectFilters = () => {
+    renderProjectTable();
+  };
+
+  projectSearch?.addEventListener('input', refreshProjectFilters);
 
   constructionSearch?.addEventListener('input', (event) => {
+    refreshProjectFilters();
     renderFirmTable(constructionTableBody, constructionFirms, event.target.value);
   });
 
   mechanicalSearch?.addEventListener('input', (event) => {
+    refreshProjectFilters();
     renderFirmTable(mechanicalTableBody, mechanicalFirms, event.target.value);
   });
 }
@@ -2668,12 +5633,18 @@ function setupProjectImportExport() {
       const result = await importProjectsFromFile(file);
       const created = result?.created ?? 0;
       const updated = result?.updated ?? 0;
+      const removed = result?.removed ?? 0;
       const parts = [];
       if (created) parts.push(`${created} yeni`);
       if (updated) parts.push(`${updated} güncel`);
+      if (removed) parts.push(`${removed} silindi`);
       const summary = parts.length ? parts.join(', ') : 'kayıt bulunamadı';
-      const tone = created || updated ? 'success' : 'warning';
-      const message = created || updated
+      const tone = created || updated || removed ? 'success' : 'warning';
+      if (projectSearch) {
+        projectSearch.value = '';
+        renderProjectTable('');
+      }
+      const message = created || updated || removed
         ? `Excel aktarımı tamamlandı: ${summary}.`
         : 'Excel dosyasında aktarılacak kayıt bulunamadı.';
       showProjectImportFeedback(message, tone, 7000);
@@ -2784,6 +5755,103 @@ function closeUserModal() {
   clearUserModalFeedback();
 }
 
+function shouldUppercaseInput(element) {
+  if (element?.dataset?.noUppercase === 'true') {
+    return false;
+  }
+  if (element instanceof HTMLTextAreaElement) {
+    return true;
+  }
+  if (element instanceof HTMLInputElement) {
+    const type = element.type?.toLowerCase?.() ?? '';
+    return ['text', 'search', 'email', 'url', 'tel'].includes(type);
+  }
+  return false;
+}
+
+function getUppercasedValue(element, value) {
+  if (element instanceof HTMLInputElement) {
+    const type = element.type?.toLowerCase?.() ?? '';
+    if (type === 'email' || type === 'url') {
+      return value.toUpperCase();
+    }
+  }
+  return value.toLocaleUpperCase('tr-TR');
+}
+
+function transformInputToUppercase(element) {
+  const currentValue = element.value ?? '';
+  const uppercased = getUppercasedValue(element, currentValue);
+  if (currentValue === uppercased) return;
+
+  let selectionStart = null;
+  let selectionEnd = null;
+  try {
+    selectionStart = element.selectionStart;
+    selectionEnd = element.selectionEnd;
+  } catch (error) {
+    selectionStart = null;
+    selectionEnd = null;
+  }
+  element.value = uppercased;
+  if (typeof element.setSelectionRange === 'function' && selectionStart !== null && selectionEnd !== null) {
+    const lengthDelta = uppercased.length - currentValue.length;
+    const nextStart = selectionStart + lengthDelta;
+    const nextEnd = selectionEnd + lengthDelta;
+    window.requestAnimationFrame(() => {
+      element.setSelectionRange(nextStart, nextEnd);
+    });
+  }
+}
+
+function setupUppercaseInputs() {
+  const handleEvent = (event) => {
+    const target = event.target;
+    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+      if (shouldUppercaseInput(target)) {
+        transformInputToUppercase(target);
+      }
+    }
+  };
+
+  document.addEventListener('input', handleEvent);
+  document.addEventListener('change', handleEvent);
+
+  document
+    .querySelectorAll('input[type="text"], input[type="search"], input[type="email"], input[type="url"], input[type="tel"], textarea')
+    .forEach((element) => {
+      if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+        if (shouldUppercaseInput(element)) {
+          transformInputToUppercase(element);
+        }
+      }
+    });
+}
+
+function ensureAutoAuthenticatedUser() {
+  if (currentUser) return;
+
+  let fallbackUser = userStore.find((user) => user.role === 'manager' && user.status !== 'inactive');
+  if (!fallbackUser) {
+    fallbackUser = userStore.find((user) => user.status !== 'inactive');
+  }
+
+  if (!fallbackUser) {
+    fallbackUser = {
+      id: createId('user'),
+      fullName: 'Yönetici Hesabı',
+      email: 'yonetici@kaldeboru.com',
+      password: '',
+      role: 'manager',
+      status: 'active',
+      createdAt: new Date().toISOString(),
+    };
+    userStore.push(fallbackUser);
+  }
+
+  currentUser = fallbackUser;
+}
+
 function updateAuthUI() {
   const authenticated = Boolean(currentUser);
   document.body.classList.toggle('is-authenticated', authenticated);
@@ -2808,6 +5876,8 @@ function updateAuthUI() {
 }
 
 function setupAuth() {
+  ensureAutoAuthenticatedUser();
+
   loginForm?.addEventListener('submit', (event) => {
     event.preventDefault();
     if (!loginForm) return;
@@ -2827,13 +5897,16 @@ function setupAuth() {
     updateAuthUI();
     resetProjectForm();
     resetRequestForm();
+    schedulePersistState();
   });
 
   logoutBtn?.addEventListener('click', () => {
     currentUser = null;
+    ensureAutoAuthenticatedUser();
     updateAuthUI();
     resetProjectForm();
     resetRequestForm();
+    schedulePersistState();
   });
 
   userAdminBtn?.addEventListener('click', () => {
@@ -2865,7 +5938,7 @@ function setupAuth() {
         return;
       }
 
-      const normalizedEmail = email.toLocaleLowerCase('tr-TR');
+      const normalizedEmail = email.toLocaleLowerCase('en-US');
       const existing = findUserByEmail(normalizedEmail);
       if (existing) {
         showFormFeedback(userForm, 'Bu kullanıcı adı zaten tanımlı.');
@@ -2887,6 +5960,7 @@ function setupAuth() {
       renderUserTable();
       refreshStaffSelectors();
       updateAuthUI();
+      schedulePersistState();
     });
   }
 
@@ -2915,6 +5989,7 @@ function setupAuth() {
     refreshStaffSelectors();
     updateAuthUI();
     showUserModalFeedback('Rol güncellendi.');
+    schedulePersistState();
   });
 
   userTableBody?.addEventListener('click', (event) => {
@@ -2931,6 +6006,7 @@ function setupAuth() {
       if (!newPassword) return;
       user.password = newPassword;
       showUserModalFeedback('Şifre güncellendi.');
+      schedulePersistState();
     }
   });
 
@@ -2950,15 +6026,19 @@ function init() {
   renderAssignments();
   renderRequests();
   setupNavigation();
+  setupMapSection();
   setupProjectSelection();
+  setupProjectLocationSelectors();
   setupFirmSelection();
   setupFirmProfileForms();
   setupForms();
   setupSearch();
   setupProjectImportExport();
   setupModal();
+  setupUppercaseInputs();
   activateView('project-pool');
 }
 
+loadPersistedState();
 setupAuth();
 init();
