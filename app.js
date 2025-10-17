@@ -22,6 +22,10 @@ const reportSummaryCards = document.getElementById('reportSummaryCards');
 const reportCategoryList = document.getElementById('reportCategoryList');
 const reportChannelList = document.getElementById('reportChannelList');
 const reportCityList = document.getElementById('reportCityList');
+const reportCategoryHousingChart = document.getElementById('reportCategoryHousingChart');
+const reportPipelineChart = document.getElementById('reportPipelineChart');
+const reportFirmChart = document.getElementById('reportFirmChart');
+const reportStatusList = document.getElementById('reportStatusList');
 const projectInfo = document.getElementById('projectInfo');
 const productTableBody = document.getElementById('productTableBody');
 const offerTotal = document.getElementById('offerTotal');
@@ -188,6 +192,30 @@ const firmConfig = {
 const requestStore = [];
 
 const numberFormatter = new Intl.NumberFormat('tr-TR');
+
+const REPORT_CATEGORY_COLORS = {
+  TOKİ: '#4263eb',
+  'Emlak Konut': '#1c7ed6',
+  Özel: '#f76707',
+  Kamu: '#0ca678',
+  Diğer: '#adb5bd',
+};
+
+const REPORT_PIPELINE_CONFIG = [
+  { key: 'payment', label: 'Ödeme Alındı', color: '#0ca678' },
+  { key: 'offer', label: 'Teklif Verildi', color: '#4263eb' },
+  { key: 'contact', label: 'Temas Edildi', color: '#fab005' },
+  { key: 'tracking', label: 'Takipte', color: '#868e96' },
+];
+
+const REPORT_PROGRESS_LABELS = {
+  completed: 'Tamamlandı',
+  ongoing: 'Devam Ediyor',
+  pending: 'Beklemede / Planlama',
+  tracking: 'Takipte',
+};
+
+const REPORT_FIRM_COLORS = ['#4263eb', '#1c7ed6', '#339af0', '#4dabf7', '#74c0fc', '#91a7ff'];
 
 const MAP_DEFAULT_CENTER = { lat: 39.0, lng: 35.0 };
 const MAP_DEFAULT_ZOOM = 6;
@@ -2620,877 +2648,6 @@ function isLikelyPersonName(value) {
   return score >= parts.length - 1;
 }
 
-function normalizeSearchQuery(value) {
-  if (value === undefined || value === null) return '';
-  return String(value).toLocaleLowerCase('tr-TR').trim();
-}
-
-function normalizeCoordinates(value) {
-  if (!value || typeof value !== 'object') return null;
-  const lat = Number(value.lat ?? value.latitude ?? value.y);
-  const lng = Number(value.lng ?? value.lon ?? value.longitude ?? value.x);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  const normalized = { lat, lng };
-  if (value.source) {
-    normalized.source = value.source;
-  }
-  return normalized;
-}
-
-function normalizeProjectCategory(value) {
-  const text = sanitizeText(value);
-  if (!text) return 'Özel';
-  const normalized = text.toLocaleLowerCase('tr-TR');
-  if (normalized.includes('toki')) return 'TOKİ';
-  if (normalized.includes('toplu konut')) return 'TOKİ';
-  if (normalized.includes('emlak')) return 'Emlak Konut';
-  if (
-    normalized.includes('kamu') ||
-    normalized.includes('beled') ||
-    normalized.includes('resmi') ||
-    normalized.includes('devlet') ||
-    normalized.includes('idare')
-  ) {
-    return 'Kamu';
-  }
-  if (
-    normalized.includes('özel') ||
-    normalized.includes('ozel') ||
-    normalized.includes('private') ||
-    normalized.includes('residence') ||
-    normalized.includes('ticari') ||
-    normalized.includes('residans')
-  ) {
-    return 'Özel';
-  }
-  return 'Özel';
-}
-
-function normalizeHousingUnits(value) {
-  if (value === undefined || value === null || value === '') return '';
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value) || value <= 0) return '';
-    return String(Math.round(value));
-  }
-  const text = sanitizeText(value);
-  if (!text) return '';
-  const cleaned = text.replace(/\s+/g, ' ');
-  const match = cleaned.match(/\d[\d.,]*/u);
-  if (!match) {
-    return cleaned;
-  }
-  const digits = match[0].replace(/\D/g, '');
-  if (!digits) {
-    return cleaned;
-  }
-  const numeric = Number(digits);
-  if (!Number.isFinite(numeric) || numeric <= 0) {
-    return '';
-  }
-  const normalizedNumber = String(Math.trunc(numeric));
-  if (!/[a-zçğıöşü]/i.test(cleaned)) {
-    return normalizedNumber;
-  }
-  return cleaned.replace(match[0], normalizedNumber);
-}
-
-function gatherColumnValues(rows, columnIndex, startIndex, maxSamples = 40) {
-  const values = [];
-  for (let rowIndex = startIndex; rowIndex < rows.length && values.length < maxSamples; rowIndex += 1) {
-    const rawRow = rows[rowIndex];
-    const cells = Array.isArray(rawRow) ? rawRow : Object.values(rawRow ?? {});
-    if (columnIndex >= cells.length) continue;
-    const cell = cells[columnIndex];
-    if (cell === undefined || cell === null) continue;
-    if (typeof cell === 'number' && Number.isFinite(cell)) {
-      values.push(cell);
-      continue;
-    }
-    const text = sanitizeText(cell);
-    if (text) {
-      values.push(cell);
-    }
-  }
-  return values;
-}
-
-function inferProjectFieldFromData(rows, columnIndex, startIndex, assignedFields, headerValue) {
-  const availableFields = Object.keys(PROJECT_FIELD_ALIASES).filter((field) => !assignedFields.has(field));
-  if (!availableFields.length) return null;
-
-  const rawValues = gatherColumnValues(rows, columnIndex, startIndex);
-  if (!rawValues.length) return null;
-
-  const headerNormalized = normalizeHeaderValue(headerValue ?? '');
-  let bestField = null;
-  let bestScore = 0;
-
-  availableFields.forEach((field) => {
-    const score = scoreColumnForField(field, headerNormalized, rawValues);
-    if (score > bestScore) {
-      bestField = field;
-      bestScore = score;
-    }
-  });
-
-  if (!bestField) return null;
-
-  const MIN_INFERENCE_SCORE = 3;
-  if (bestScore < MIN_INFERENCE_SCORE) {
-    return null;
-  }
-
-  return bestField;
-}
-
-function scoreColumnForField(field, headerNormalized, rawValues) {
-  const sanitizedValues = [];
-  const filteredRawValues = [];
-  rawValues.forEach((value) => {
-    if (value === undefined || value === null) return;
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      sanitizedValues.push(String(value));
-      filteredRawValues.push(value);
-      return;
-    }
-    const text = sanitizeText(value);
-    if (!text) return;
-    sanitizedValues.push(text);
-    filteredRawValues.push(value);
-  });
-
-  if (!sanitizedValues.length) return 0;
-
-  const header = headerNormalized || '';
-  const lowerValues = sanitizedValues.map((value) => value.toLocaleLowerCase('tr-TR'));
-  const total = sanitizedValues.length;
-  const uniqueRatio = new Set(lowerValues).size / total;
-  const spaceRatio = sanitizedValues.filter((value) => value.includes(' ')).length / total;
-  const mediumTextRatio = sanitizedValues.filter((value) => value.length >= 12).length / total;
-  const longTextRatio = sanitizedValues.filter((value) => value.length >= 35).length / total;
-  const numericRatio = sanitizedValues.filter((value) => /^[0-9]+$/.test(value)).length / total;
-  const codeRatio = sanitizedValues.filter((value) => /^[0-9a-zA-Z_.\-/]+$/.test(value) && !value.includes(' ')).length / total;
-  const shortLengthRatio = sanitizedValues.filter((value) => value.length <= 8).length / total;
-  const dateRatio = filteredRawValues.filter((value) => looksLikeDateValue(value)).length / total;
-  const cityMatchRatio = lowerValues.filter((value) => isKnownCity(value)).length / total;
-  const categoryMatchRatio = lowerValues.filter((value) =>
-    CATEGORY_KEYWORDS.some((keyword) => value.includes(keyword))
-  ).length / total;
-  const contractorMatchRatio = lowerValues.filter((value) =>
-    CONTRACTOR_KEYWORDS.some((keyword) => value.includes(keyword))
-  ).length / total;
-  const mechanicalMatchRatio = lowerValues.filter((value) =>
-    MECHANICAL_KEYWORDS.some((keyword) => value.includes(keyword))
-  ).length / total;
-  const channelKeywordRatio = lowerValues.filter((value) =>
-    CHANNEL_KEYWORDS.some((keyword) => value.includes(keyword))
-  ).length / total;
-  const dealerNameRatio = lowerValues.filter((value) =>
-    DEALER_NAME_KEYWORDS.some((keyword) => value.includes(keyword))
-  ).length / total;
-  const salesKeywordRatio = lowerValues.filter((value) =>
-    SALES_STATUS_KEYWORDS.some((keyword) => value.includes(keyword))
-  ).length / total;
-  const institutionKeywordRatio = lowerValues.filter((value) =>
-    INSTITUTION_KEYWORDS.some((keyword) => value.includes(keyword))
-  ).length / total;
-  const teamKeywordRatio = lowerValues.filter((value) =>
-    TEAM_KEYWORDS.some((keyword) => value.includes(keyword))
-  ).length / total;
-  const scopeKeywordRatio = lowerValues.filter((value) =>
-    SCOPE_KEYWORDS.some((keyword) => value.includes(keyword))
-  ).length / total;
-  const progressKeywordRatio = lowerValues.filter((value) =>
-    PROGRESS_KEYWORDS.some((keyword) => value.includes(keyword))
-  ).length / total;
-  const housingKeywordRatio = lowerValues.filter((value) =>
-    HOUSING_KEYWORDS.some((keyword) => value.includes(keyword))
-  ).length / total;
-  const personMatchRatio = sanitizedValues.filter((value) => isLikelyPersonName(value)).length / total;
-  const staffNames = new Set(userStore.map((user) => user.fullName.toLocaleLowerCase('tr-TR')));
-  const knownStaffRatio = lowerValues.filter((value) => staffNames.has(value)).length / total;
-
-  let score = 0;
-
-  switch (field) {
-    case 'id':
-      score += codeRatio * 6;
-      score += uniqueRatio * 4;
-      score += (1 - spaceRatio) * 2;
-      if (numericRatio > 0.5) score += 1.5;
-      if (shortLengthRatio > 0.5) score += 1;
-      if (header.includes('no') || header.includes('numar') || header.includes('kod') || header.includes('ref')) {
-        score += 4;
-      }
-      break;
-    case 'name':
-      score += spaceRatio * 5;
-      score += mediumTextRatio * 2;
-      score += longTextRatio * 2;
-      if (
-        lowerValues.some((value) =>
-          value.includes('proje') || value.includes('site') || value.includes('residence')
-        )
-      ) {
-        score += 2;
-      }
-      if (header.includes('ad') || header.includes('isim') || header.includes('proje')) {
-        score += 4;
-      }
-      break;
-    case 'category':
-      score += categoryMatchRatio * 8;
-      if (header.includes('kategori')) score += 4;
-      if (uniqueRatio <= 0.5) score += 1.5;
-      if (shortLengthRatio > 0.4) score += 1;
-      break;
-    case 'city':
-      score += cityMatchRatio * 10;
-      if (header.includes('sehir') || header.includes('şehir') || header.includes('lokasyon') || header.includes('il')) {
-        score += 4;
-      }
-      if (spaceRatio < 0.3) score += 0.5;
-      break;
-    case 'housingUnits':
-      score += numericRatio * 8;
-      score += housingKeywordRatio * 8;
-      if (shortLengthRatio > 0.4) score += 1.5;
-      if (
-        header.includes('konut') ||
-        header.includes('daire') ||
-        header.includes('adet') ||
-        header.includes('bagimsiz') ||
-        header.includes('bağımsız')
-      ) {
-        score += 4;
-      }
-      break;
-    case 'addedAt':
-      score += dateRatio * 9;
-      if (header.includes('tarih')) score += 2;
-      if (
-        header.includes('eklen') ||
-        header.includes('oluş') ||
-        header.includes('olus') ||
-        header.includes('baslang') ||
-        header.includes('başlang') ||
-        header.includes('ilk')
-      ) {
-        score += 3;
-      }
-      break;
-    case 'updatedAt':
-      score += dateRatio * 9;
-      if (header.includes('tarih')) score += 2;
-      if (header.includes('son') || header.includes('güncel') || header.includes('guncel')) {
-        score += 3;
-      }
-      break;
-    case 'contractor':
-      score += contractorMatchRatio * 10;
-      if (header.includes('yüklen') || header.includes('yuklen') || header.includes('insaat') || header.includes('firma')) {
-        score += 4;
-      }
-      break;
-    case 'mechanical':
-      score += mechanicalMatchRatio * 10;
-      if (header.includes('mekanik') || header.includes('tesisat')) {
-        score += 4;
-      }
-      break;
-    case 'manager':
-      score += personMatchRatio * 8;
-      score += knownStaffRatio * 5;
-      if (
-        header.includes('sorum') ||
-        header.includes('temsil') ||
-        header.includes('yetk') ||
-        header.includes('yonet') ||
-        header.includes('manager') ||
-        header.includes('person')
-      ) {
-        score += 4;
-      }
-      break;
-    case 'channel':
-      score += channelKeywordRatio * 9;
-      if (
-        header.includes('kanal') ||
-        header.includes('baglanti') ||
-        header.includes('bağlantı') ||
-        header.includes('tip')
-      ) {
-        score += 4;
-      }
-      break;
-    case 'channelName':
-      score += dealerNameRatio * 8;
-      if (channelKeywordRatio > 0) score += 2;
-      if (header.includes('bayi') || header.includes('kanal')) {
-        score += 3;
-      }
-      break;
-    case 'salesStatus':
-      score += salesKeywordRatio * 9;
-      if (header.includes('satis') || header.includes('satış') || header.includes('durum') || header.includes('status')) {
-        score += 4;
-      }
-      break;
-    case 'scope':
-      score += scopeKeywordRatio * 7;
-      score += numericRatio * 2;
-      if (
-        header.includes('kapsam') ||
-        header.includes('scope') ||
-        header.includes('icerik') ||
-        header.includes('içerik')
-      ) {
-        score += 4;
-      }
-      break;
-    case 'responsibleInstitution':
-      score += institutionKeywordRatio * 9;
-      if (header.includes('kurum') || header.includes('idare') || header.includes('beled') || header.includes('paydas')) {
-        score += 4;
-      }
-      break;
-    case 'assignedTeam':
-      score += teamKeywordRatio * 9;
-      if (header.includes('ekip') || header.includes('team') || header.includes('grup')) {
-        score += 4;
-      }
-      break;
-    case 'progress':
-      score += progressKeywordRatio * 8;
-      score += longTextRatio * 4;
-      if (header.includes('not') || header.includes('acik') || header.includes('açıkl') || header.includes('ilerleme') || header.includes('durum')) {
-        score += 4;
-      }
-      break;
-    default:
-      break;
-  }
-
-  return score;
-}
-
-function looksLikeDateValue(value) {
-  if (value === undefined || value === null || value === '') return false;
-  const normalized = normalizeDateCell(value);
-  if (!normalized) return false;
-  const year = Number(normalized.slice(0, 4));
-  if (!Number.isFinite(year)) return false;
-  return year >= 1900 && year <= 2100;
-}
-
-function getProjectLocationFields() {
-  if (!(projectForm instanceof HTMLFormElement)) {
-    return { citySelect: null, districtSelect: null };
-  }
-  const city = projectForm.elements.namedItem('projectCity');
-  const district = projectForm.elements.namedItem('projectDistrict');
-  return {
-    citySelect: city instanceof HTMLSelectElement ? city : null,
-    districtSelect: district instanceof HTMLSelectElement ? district : null,
-  };
-}
-
-function populateCitySelect(select, selectedValue) {
-  if (!(select instanceof HTMLSelectElement)) return '';
-  const normalizedSelected = normalizeCityKey(selectedValue);
-  const options = ['<option value="">İl Seçin</option>'];
-  let matchedValue = '';
-
-  TURKISH_PROVINCES.forEach((province) => {
-    const text = sanitizeText(province);
-    if (!text) return;
-    const option = `<option value="${escapeHtml(text)}">${escapeHtml(text)}</option>`;
-    options.push(option);
-    if (normalizedSelected && normalizeCityKey(text) === normalizedSelected) {
-      matchedValue = text;
-    }
-  });
-
-  const extra = sanitizeText(selectedValue);
-  if (extra && !matchedValue) {
-    options.push(`<option value="${escapeHtml(extra)}">${escapeHtml(extra)}</option>`);
-    matchedValue = extra;
-  }
-
-  select.innerHTML = options.join('');
-  select.value = matchedValue || '';
-  return select.value;
-}
-
-function populateDistrictSelect(select, cityValue, selectedDistrict) {
-  if (!(select instanceof HTMLSelectElement)) return '';
-  const normalizedCity = normalizeCityKey(cityValue);
-  const normalizedSelected = normalizeCityKey(selectedDistrict);
-  const districts = normalizedCity ? TURKISH_DISTRICTS[normalizedCity] ?? [] : [];
-  const hasCity = Boolean(normalizedCity);
-  const hasDistrictData = districts.length > 0;
-  const hasCustomSelection = Boolean(sanitizeText(selectedDistrict));
-  const placeholder = hasCity
-    ? hasDistrictData || hasCustomSelection
-      ? 'İlçe Seçin'
-      : 'İlçe bulunamadı'
-    : 'Önce il seçin';
-  const options = [`<option value="">${escapeHtml(placeholder)}</option>`];
-  let matchedValue = '';
-
-  districts.forEach((district) => {
-    const text = sanitizeText(district);
-    if (!text) return;
-    options.push(`<option value="${escapeHtml(text)}">${escapeHtml(text)}</option>`);
-    if (normalizedSelected && normalizeCityKey(text) === normalizedSelected) {
-      matchedValue = text;
-    }
-  });
-
-  const extra = sanitizeText(selectedDistrict);
-  if (extra && !matchedValue) {
-    options.push(`<option value="${escapeHtml(extra)}">${escapeHtml(extra)}</option>`);
-    matchedValue = extra;
-  }
-
-  select.innerHTML = options.join('');
-  select.value = matchedValue || '';
-  select.disabled = !hasCity || (!hasDistrictData && !hasCustomSelection);
-  return select.value;
-}
-
-function applyProjectLocationToForm(city, district) {
-  const { citySelect, districtSelect } = getProjectLocationFields();
-  if (!citySelect || !districtSelect) return;
-  const appliedCity = populateCitySelect(citySelect, city);
-  populateDistrictSelect(districtSelect, appliedCity, district);
-}
-
-function setupProjectLocationSelectors() {
-  const { citySelect, districtSelect } = getProjectLocationFields();
-  if (!citySelect || !districtSelect) return;
-
-  const initialCity = citySelect.value || '';
-  const initialDistrict = districtSelect.value || '';
-  const appliedCity = populateCitySelect(citySelect, initialCity);
-  populateDistrictSelect(districtSelect, appliedCity, initialDistrict);
-
-  citySelect.addEventListener('change', () => {
-    populateDistrictSelect(districtSelect, citySelect.value, '');
-  });
-}
-
-function normalizeHeaderValue(value) {
-  if (value === undefined || value === null) return '';
-  return String(value)
-    .toLocaleLowerCase('tr-TR')
-    .replace(/[()]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function resolveProjectField(header) {
-  const normalized = normalizeHeaderValue(header);
-  if (!normalized) return null;
-  return (
-    Object.entries(PROJECT_FIELD_ALIASES).find(([, aliases]) => aliases.includes(normalized))?.[0] ?? null
-  );
-}
-
-function sanitizeText(value) {
-  if (value === undefined || value === null) return '';
-  return String(value).trim();
-}
-
-function normalizeSearchQuery(value) {
-  if (value === undefined || value === null) return '';
-  return String(value).toLocaleLowerCase('tr-TR').trim();
-}
-
-function normalizeCoordinates(value) {
-  if (!value || typeof value !== 'object') return null;
-  const lat = Number(value.lat ?? value.latitude ?? value.y);
-  const lng = Number(value.lng ?? value.lon ?? value.longitude ?? value.x);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  const normalized = { lat, lng };
-  if (value.source) {
-    normalized.source = value.source;
-  }
-  return normalized;
-}
-
-function normalizeProjectCategory(value) {
-  const text = sanitizeText(value);
-  if (!text) return 'Özel';
-  const normalized = text.toLocaleLowerCase('tr-TR');
-  if (normalized.includes('toki')) return 'TOKİ';
-  if (normalized.includes('toplu konut')) return 'TOKİ';
-  if (normalized.includes('emlak')) return 'Emlak Konut';
-  if (
-    normalized.includes('kamu') ||
-    normalized.includes('beled') ||
-    normalized.includes('resmi') ||
-    normalized.includes('devlet') ||
-    normalized.includes('idare')
-  ) {
-    return 'Kamu';
-  }
-  if (
-    normalized.includes('özel') ||
-    normalized.includes('ozel') ||
-    normalized.includes('private') ||
-    normalized.includes('residence') ||
-    normalized.includes('ticari') ||
-    normalized.includes('residans')
-  ) {
-    return 'Özel';
-  }
-  return 'Özel';
-}
-
-function normalizeHousingUnits(value) {
-  if (value === undefined || value === null || value === '') return '';
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value) || value <= 0) return '';
-    return String(Math.round(value));
-  }
-  const text = sanitizeText(value);
-  if (!text) return '';
-  const cleaned = text.replace(/\s+/g, ' ');
-  const match = cleaned.match(/\d[\d.,]*/u);
-  if (!match) {
-    return cleaned;
-  }
-  const digits = match[0].replace(/\D/g, '');
-  if (!digits) {
-    return cleaned;
-  }
-  const numeric = Number(digits);
-  if (!Number.isFinite(numeric) || numeric <= 0) {
-    return '';
-  }
-  const normalizedNumber = String(Math.trunc(numeric));
-  if (!/[a-zçğıöşü]/i.test(cleaned)) {
-    return normalizedNumber;
-  }
-  return cleaned.replace(match[0], normalizedNumber);
-}
-
-function gatherColumnValues(rows, columnIndex, startIndex, maxSamples = 40) {
-  const values = [];
-  for (let rowIndex = startIndex; rowIndex < rows.length && values.length < maxSamples; rowIndex += 1) {
-    const rawRow = rows[rowIndex];
-    const cells = Array.isArray(rawRow) ? rawRow : Object.values(rawRow ?? {});
-    if (columnIndex >= cells.length) continue;
-    const cell = cells[columnIndex];
-    if (cell === undefined || cell === null) continue;
-    if (typeof cell === 'number' && Number.isFinite(cell)) {
-      values.push(cell);
-      continue;
-    }
-    const text = sanitizeText(cell);
-    if (text) {
-      values.push(cell);
-    }
-  }
-  return values;
-}
-
-function inferProjectFieldFromData(rows, columnIndex, startIndex, assignedFields, headerValue) {
-  const availableFields = Object.keys(PROJECT_FIELD_ALIASES).filter((field) => !assignedFields.has(field));
-  if (!availableFields.length) return null;
-
-  const rawValues = gatherColumnValues(rows, columnIndex, startIndex);
-  if (!rawValues.length) return null;
-
-  const headerNormalized = normalizeHeaderValue(headerValue ?? '');
-  let bestField = null;
-  let bestScore = 0;
-
-  availableFields.forEach((field) => {
-    const score = scoreColumnForField(field, headerNormalized, rawValues);
-    if (score > bestScore) {
-      bestField = field;
-      bestScore = score;
-    }
-  });
-
-  if (!bestField) return null;
-
-  const MIN_INFERENCE_SCORE = 3;
-  if (bestScore < MIN_INFERENCE_SCORE) {
-    return null;
-  }
-
-  return bestField;
-}
-
-function scoreColumnForField(field, headerNormalized, rawValues) {
-  const sanitizedValues = [];
-  const filteredRawValues = [];
-  rawValues.forEach((value) => {
-    if (value === undefined || value === null) return;
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      sanitizedValues.push(String(value));
-      filteredRawValues.push(value);
-      return;
-    }
-    const text = sanitizeText(value);
-    if (!text) return;
-    sanitizedValues.push(text);
-    filteredRawValues.push(value);
-  });
-
-  if (!sanitizedValues.length) return 0;
-
-  const header = headerNormalized || '';
-  const lowerValues = sanitizedValues.map((value) => value.toLocaleLowerCase('tr-TR'));
-  const total = sanitizedValues.length;
-  const uniqueRatio = new Set(lowerValues).size / total;
-  const spaceRatio = sanitizedValues.filter((value) => value.includes(' ')).length / total;
-  const mediumTextRatio = sanitizedValues.filter((value) => value.length >= 12).length / total;
-  const longTextRatio = sanitizedValues.filter((value) => value.length >= 35).length / total;
-  const numericRatio = sanitizedValues.filter((value) => /^[0-9]+$/.test(value)).length / total;
-  const codeRatio = sanitizedValues.filter((value) => /^[0-9a-zA-Z_.\-/]+$/.test(value) && !value.includes(' ')).length / total;
-  const shortLengthRatio = sanitizedValues.filter((value) => value.length <= 8).length / total;
-  const dateRatio = filteredRawValues.filter((value) => looksLikeDateValue(value)).length / total;
-  const cityMatchRatio = lowerValues.filter((value) => isKnownCity(value)).length / total;
-  const categoryMatchRatio = lowerValues.filter((value) =>
-    CATEGORY_KEYWORDS.some((keyword) => value.includes(keyword))
-  ).length / total;
-  const contractorMatchRatio = lowerValues.filter((value) =>
-    CONTRACTOR_KEYWORDS.some((keyword) => value.includes(keyword))
-  ).length / total;
-  const mechanicalMatchRatio = lowerValues.filter((value) =>
-    MECHANICAL_KEYWORDS.some((keyword) => value.includes(keyword))
-  ).length / total;
-  const channelKeywordRatio = lowerValues.filter((value) =>
-    CHANNEL_KEYWORDS.some((keyword) => value.includes(keyword))
-  ).length / total;
-  const dealerNameRatio = lowerValues.filter((value) =>
-    DEALER_NAME_KEYWORDS.some((keyword) => value.includes(keyword))
-  ).length / total;
-  const salesKeywordRatio = lowerValues.filter((value) =>
-    SALES_STATUS_KEYWORDS.some((keyword) => value.includes(keyword))
-  ).length / total;
-  const institutionKeywordRatio = lowerValues.filter((value) =>
-    INSTITUTION_KEYWORDS.some((keyword) => value.includes(keyword))
-  ).length / total;
-  const teamKeywordRatio = lowerValues.filter((value) =>
-    TEAM_KEYWORDS.some((keyword) => value.includes(keyword))
-  ).length / total;
-  const scopeKeywordRatio = lowerValues.filter((value) =>
-    SCOPE_KEYWORDS.some((keyword) => value.includes(keyword))
-  ).length / total;
-  const progressKeywordRatio = lowerValues.filter((value) =>
-    PROGRESS_KEYWORDS.some((keyword) => value.includes(keyword))
-  ).length / total;
-  const housingKeywordRatio = lowerValues.filter((value) =>
-    HOUSING_KEYWORDS.some((keyword) => value.includes(keyword))
-  ).length / total;
-  const personMatchRatio = sanitizedValues.filter((value) => isLikelyPersonName(value)).length / total;
-  const staffNames = new Set(userStore.map((user) => user.fullName.toLocaleLowerCase('tr-TR')));
-  const knownStaffRatio = lowerValues.filter((value) => staffNames.has(value)).length / total;
-
-  let score = 0;
-
-  switch (field) {
-    case 'id':
-      score += codeRatio * 6;
-      score += uniqueRatio * 4;
-      score += (1 - spaceRatio) * 2;
-      if (numericRatio > 0.5) score += 1.5;
-      if (shortLengthRatio > 0.5) score += 1;
-      if (header.includes('no') || header.includes('numar') || header.includes('kod') || header.includes('ref')) {
-        score += 4;
-      }
-      break;
-    case 'name':
-      score += spaceRatio * 5;
-      score += mediumTextRatio * 2;
-      score += longTextRatio * 2;
-      if (
-        lowerValues.some((value) =>
-          value.includes('proje') || value.includes('site') || value.includes('residence')
-        )
-      ) {
-        score += 2;
-      }
-      if (header.includes('ad') || header.includes('isim') || header.includes('proje')) {
-        score += 4;
-      }
-      break;
-    case 'category':
-      score += categoryMatchRatio * 8;
-      if (header.includes('kategori')) score += 4;
-      if (uniqueRatio <= 0.5) score += 1.5;
-      if (shortLengthRatio > 0.4) score += 1;
-      break;
-    case 'city':
-      score += cityMatchRatio * 10;
-      if (header.includes('sehir') || header.includes('şehir') || header.includes('lokasyon') || header.includes('il')) {
-        score += 4;
-      }
-      if (spaceRatio < 0.3) score += 0.5;
-      break;
-    case 'housingUnits':
-      score += numericRatio * 8;
-      score += housingKeywordRatio * 8;
-      if (shortLengthRatio > 0.4) score += 1.5;
-      if (
-        header.includes('konut') ||
-        header.includes('daire') ||
-        header.includes('adet') ||
-        header.includes('bagimsiz') ||
-        header.includes('bağımsız')
-      ) {
-        score += 4;
-      }
-      break;
-    case 'addedAt':
-      score += dateRatio * 9;
-      if (header.includes('tarih')) score += 2;
-      if (
-        header.includes('eklen') ||
-        header.includes('oluş') ||
-        header.includes('olus') ||
-        header.includes('baslang') ||
-        header.includes('başlang') ||
-        header.includes('ilk')
-      ) {
-        score += 3;
-      }
-      break;
-    case 'updatedAt':
-      score += dateRatio * 9;
-      if (header.includes('tarih')) score += 2;
-      if (header.includes('son') || header.includes('güncel') || header.includes('guncel')) {
-        score += 3;
-      }
-      break;
-    case 'contractor':
-      score += contractorMatchRatio * 10;
-      if (header.includes('yüklen') || header.includes('yuklen') || header.includes('insaat') || header.includes('firma')) {
-        score += 4;
-      }
-      break;
-    case 'mechanical':
-      score += mechanicalMatchRatio * 10;
-      if (header.includes('mekanik') || header.includes('tesisat')) {
-        score += 4;
-      }
-      break;
-    case 'manager':
-      score += personMatchRatio * 8;
-      score += knownStaffRatio * 5;
-      if (
-        header.includes('sorum') ||
-        header.includes('temsil') ||
-        header.includes('yetk') ||
-        header.includes('yonet') ||
-        header.includes('manager') ||
-        header.includes('person')
-      ) {
-        score += 4;
-      }
-      break;
-    case 'channel':
-      score += channelKeywordRatio * 9;
-      if (
-        header.includes('kanal') ||
-        header.includes('baglanti') ||
-        header.includes('bağlantı') ||
-        header.includes('tip')
-      ) {
-        score += 4;
-      }
-      break;
-    case 'channelName':
-      score += dealerNameRatio * 8;
-      if (channelKeywordRatio > 0) score += 2;
-      if (header.includes('bayi') || header.includes('kanal')) {
-        score += 3;
-      }
-      break;
-    case 'salesStatus':
-      score += salesKeywordRatio * 9;
-      if (header.includes('satis') || header.includes('satış') || header.includes('durum') || header.includes('status')) {
-        score += 4;
-      }
-      break;
-    case 'scope':
-      score += scopeKeywordRatio * 7;
-      score += numericRatio * 2;
-      if (
-        header.includes('kapsam') ||
-        header.includes('scope') ||
-        header.includes('icerik') ||
-        header.includes('içerik')
-      ) {
-        score += 4;
-      }
-      break;
-    case 'responsibleInstitution':
-      score += institutionKeywordRatio * 9;
-      if (header.includes('kurum') || header.includes('idare') || header.includes('beled') || header.includes('paydas')) {
-        score += 4;
-      }
-      break;
-    case 'assignedTeam':
-      score += teamKeywordRatio * 9;
-      if (header.includes('ekip') || header.includes('team') || header.includes('grup')) {
-        score += 4;
-      }
-      break;
-    case 'progress':
-      score += progressKeywordRatio * 8;
-      score += longTextRatio * 4;
-      if (header.includes('not') || header.includes('acik') || header.includes('açıkl') || header.includes('ilerleme') || header.includes('durum')) {
-        score += 4;
-      }
-      break;
-    default:
-      break;
-  }
-
-  return score;
-}
-
-function looksLikeDateValue(value) {
-  if (value === undefined || value === null || value === '') return false;
-  const normalized = normalizeDateCell(value);
-  if (!normalized) return false;
-  const year = Number(normalized.slice(0, 4));
-  if (!Number.isFinite(year)) return false;
-  return year >= 1900 && year <= 2100;
-}
-
-function isKnownCity(value) {
-  if (!value) return false;
-  const normalized = String(value)
-    .toLocaleLowerCase('tr-TR')
-    .replace(/\s+/g, ' ')
-    .trim();
-  if (!normalized) return false;
-  return TURKISH_CITY_NAMES.has(normalized);
-}
-
-function isLikelyPersonName(value) {
-  if (!value) return false;
-  const parts = String(value)
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  if (parts.length < 2 || parts.length > 4) return false;
-  let score = 0;
-  parts.forEach((part) => {
-    if (/^[A-ZÇĞİÖŞÜ][a-zçğıöşü'’-]+$/.test(part) || /^[A-ZÇĞİÖŞÜ]+$/.test(part)) {
-      score += 1;
-    }
-  });
-  return score >= parts.length - 1;
-}
-
 function normalizeChannelValue(value) {
   const text = sanitizeText(value).toLocaleLowerCase('tr-TR');
   if (!text) return 'direct';
@@ -3787,6 +2944,17 @@ function formatCurrency(amount) {
   });
 }
 
+function formatShare(value, total) {
+  const numericValue = Number(value) || 0;
+  const numericTotal = Number(total) || 0;
+  if (numericTotal <= 0 || numericValue <= 0) return '%0';
+  const ratio = (numericValue / numericTotal) * 100;
+  if (ratio >= 10 || numericTotal > 10) {
+    return `%${Math.round(ratio)}`;
+  }
+  return `%${ratio.toFixed(1)}`;
+}
+
 function formatFileSize(bytes) {
   const value = Number(bytes);
   if (!Number.isFinite(value) || value <= 0) return '—';
@@ -3809,6 +2977,15 @@ function deriveSalesStatus(project) {
   const hasVisits = Array.isArray(project.visits) && project.visits.length > 0;
   if (hasVisits) return 'Temas Edildi';
   return project.salesStatus?.trim() || 'Takipte';
+}
+
+function deriveProgressStage(project) {
+  const note = project?.progress?.toLocaleLowerCase('tr-TR') ?? '';
+  if (!note) return 'tracking';
+  if (/(tamam|teslim|bitir|bitti|sonuçlan|kapan)/.test(note)) return 'completed';
+  if (/(devam|sür|inşa|montaj|imalat|üretim|kurulum)/.test(note)) return 'ongoing';
+  if (/(bekle|plan|onay|hazırlık|izin|ihale)/.test(note)) return 'pending';
+  return 'tracking';
 }
 
 function refreshProjectStatus(project) {
@@ -4692,8 +3869,77 @@ function renderProjectMap() {
   }
 }
 
+function renderDonut(target, segments, options = {}) {
+  if (!target) return;
+  const validSegments = segments.filter((segment) => Number(segment.value) > 0);
+  const total = validSegments.reduce((sum, segment) => sum + (Number(segment.value) || 0), 0);
+
+  if (!total) {
+    target.innerHTML = '<p class="muted">Veri bulunmuyor.</p>';
+    return;
+  }
+
+  let currentAngle = 0;
+  const gradientPieces = validSegments.map((segment) => {
+    const start = currentAngle;
+    const angle = ((Number(segment.value) || 0) / total) * 360;
+    currentAngle += angle;
+    const end = currentAngle;
+    return `${segment.color} ${start}deg ${end}deg`;
+  });
+
+  const centerLabel = options.centerLabel ?? numberFormatter.format(total);
+  const centerHint = options.centerHint ?? '';
+  const valueFormatter =
+    options.valueFormatter ?? ((segment) => numberFormatter.format(Number(segment.value) || 0));
+  const detailFormatter =
+    options.detailFormatter ?? ((segment) => segment?.detail ?? segment?.subtitle ?? '');
+
+  const legend = validSegments
+    .map((segment, index) => {
+      const share = formatShare(segment.value, total);
+      const valueLabel = valueFormatter(segment, total, index);
+      const detail = detailFormatter ? detailFormatter(segment, total, index) : '';
+      return `
+        <li>
+          <div class="chart-legend__top">
+            <span class="chart-legend__info">
+              <span class="legend-color" style="background:${segment.color};"></span>
+              <span>${escapeHtml(segment.label)}</span>
+            </span>
+            <span class="chart-legend__metric">
+              <span class="chart-legend__value">${escapeHtml(valueLabel)}</span>
+              <span class="chart-legend__share">${share}</span>
+            </span>
+          </div>
+          ${detail ? `<span class="chart-legend__detail">${escapeHtml(detail)}</span>` : ''}
+        </li>
+      `;
+    })
+    .join('');
+
+  target.innerHTML = `
+    <div class="donut-chart" style="background: conic-gradient(${gradientPieces.join(', ')});">
+      <div class="donut-chart__label">
+        <span class="donut-chart__value">${escapeHtml(centerLabel)}</span>
+        ${centerHint ? `<span class="donut-chart__hint">${escapeHtml(centerHint)}</span>` : ''}
+      </div>
+    </div>
+    <ul class="chart-legend">${legend}</ul>
+  `;
+}
+
 function renderProjectReports() {
-  if (!reportSummaryCards && !reportCategoryList && !reportChannelList && !reportCityList) {
+  if (
+    !reportSummaryCards &&
+    !reportCategoryList &&
+    !reportChannelList &&
+    !reportCityList &&
+    !reportCategoryHousingChart &&
+    !reportPipelineChart &&
+    !reportFirmChart &&
+    !reportStatusList
+  ) {
     return;
   }
 
@@ -4703,6 +3949,81 @@ function renderProjectReports() {
     0,
   );
   const averageHousing = totalProjects ? Math.round(totalHousingUnits / totalProjects) : 0;
+
+  let paidProjectCount = 0;
+  let paidHousingTotal = 0;
+  let offerProjectCount = 0;
+  let offerHousingTotal = 0;
+  let visitedProjectCount = 0;
+  let visitedHousingTotal = 0;
+
+  const pipelineTotals = REPORT_PIPELINE_CONFIG.reduce((acc, stage) => {
+    acc[stage.key] = { count: 0, housing: 0 };
+    return acc;
+  }, {});
+
+  const progressTotals = Object.keys(REPORT_PROGRESS_LABELS).reduce((acc, key) => {
+    acc[key] = { count: 0, housing: 0 };
+    return acc;
+  }, {});
+
+  const categoryStats = new Map();
+  const contractorStats = new Map();
+
+  projectStore.forEach((project) => {
+    const housingTotal = getHousingUnitTotal(project.housingUnits);
+
+    if (Array.isArray(project.payments) && project.payments.length > 0) {
+      paidProjectCount += 1;
+      paidHousingTotal += housingTotal;
+    }
+
+    if (Array.isArray(project.offers) && project.offers.length > 0) {
+      offerProjectCount += 1;
+      offerHousingTotal += housingTotal;
+    }
+
+    if (Array.isArray(project.visits) && project.visits.length > 0) {
+      visitedProjectCount += 1;
+      visitedHousingTotal += housingTotal;
+    }
+
+    const stageStatus = deriveSalesStatus(project);
+    const stageKey =
+      stageStatus === 'Ödeme Alındı'
+        ? 'payment'
+        : stageStatus === 'Teklif Verildi'
+        ? 'offer'
+        : stageStatus === 'Temas Edildi'
+        ? 'contact'
+        : 'tracking';
+    const stageEntry = pipelineTotals[stageKey] || (pipelineTotals[stageKey] = { count: 0, housing: 0 });
+    stageEntry.count += 1;
+    stageEntry.housing += housingTotal;
+
+    const progressKey = deriveProgressStage(project);
+    const progressEntry = progressTotals[progressKey] || (progressTotals[progressKey] = { count: 0, housing: 0 });
+    progressEntry.count += 1;
+    progressEntry.housing += housingTotal;
+
+    const category = normalizeProjectCategory(project.category);
+    if (!categoryStats.has(category)) {
+      categoryStats.set(category, { projects: 0, housing: 0 });
+    }
+    const categoryEntry = categoryStats.get(category);
+    categoryEntry.projects += 1;
+    categoryEntry.housing += housingTotal;
+
+    const contractorName = sanitizeText(project.contractor);
+    if (contractorName) {
+      if (!contractorStats.has(contractorName)) {
+        contractorStats.set(contractorName, { count: 0, housing: 0 });
+      }
+      const contractorEntry = contractorStats.get(contractorName);
+      contractorEntry.count += 1;
+      contractorEntry.housing += housingTotal;
+    }
+  });
 
   if (reportSummaryCards) {
     const summaryCards = [
@@ -4721,6 +4042,16 @@ function renderProjectReports() {
         metric: totalProjects ? numberFormatter.format(averageHousing) : '-',
         hint: 'Proje başına ortalama konut',
       },
+      {
+        title: 'Ödeme Alınan',
+        metric: numberFormatter.format(paidProjectCount),
+        hint: 'Tahsilat kaydı bulunan proje',
+      },
+      {
+        title: 'Teklif Verilen',
+        metric: numberFormatter.format(offerProjectCount),
+        hint: 'Teklif kaydı bulunan proje',
+      },
     ];
 
     reportSummaryCards.innerHTML = summaryCards
@@ -4736,39 +4067,220 @@ function renderProjectReports() {
       .join('');
   }
 
-  if (reportCategoryList) {
-    const categoryOrder = ['TOKİ', 'Emlak Konut', 'Özel', 'Kamu'];
-    const categoryTotals = categoryOrder.reduce((acc, category) => {
-      acc[category] = 0;
-      return acc;
-    }, {});
+  if (reportCategoryHousingChart) {
+    if (!totalHousingUnits) {
+      reportCategoryHousingChart.innerHTML =
+        '<p class="muted">Konut verisi bulunan proje yok.</p>';
+    } else {
+      const categoryOrder = ['TOKİ', 'Emlak Konut', 'Özel', 'Kamu'];
+      const housingSegments = [];
 
-    projectStore.forEach((project) => {
-      const category = normalizeProjectCategory(project.category);
-      if (!(category in categoryTotals)) {
-        categoryTotals[category] = 0;
-      }
-      categoryTotals[category] += 1;
+      categoryOrder.forEach((category) => {
+        const stats = categoryStats.get(category);
+        if (!stats) return;
+        housingSegments.push({
+          label: category,
+          value: stats.housing,
+          color: REPORT_CATEGORY_COLORS[category] ?? REPORT_CATEGORY_COLORS.Diğer,
+          detail: `${numberFormatter.format(stats.projects)} proje`,
+        });
+      });
+
+      categoryStats.forEach((stats, category) => {
+        if (categoryOrder.includes(category)) return;
+        housingSegments.push({
+          label: category,
+          value: stats.housing,
+          color: REPORT_CATEGORY_COLORS[category] ?? REPORT_CATEGORY_COLORS.Diğer,
+          detail: `${numberFormatter.format(stats.projects)} proje`,
+        });
+      });
+
+      renderDonut(reportCategoryHousingChart, housingSegments, {
+        centerLabel: numberFormatter.format(totalHousingUnits),
+        centerHint: 'Konut',
+        valueFormatter: (segment) => `${numberFormatter.format(segment.value)} konut`,
+      });
+    }
+  }
+
+  if (reportPipelineChart) {
+    const pipelineSegments = REPORT_PIPELINE_CONFIG.map((config) => {
+      const stats = pipelineTotals[config.key] || { count: 0, housing: 0 };
+      return {
+        label: config.label,
+        value: stats.count,
+        color: config.color,
+        detail: stats.housing ? `${numberFormatter.format(stats.housing)} konut` : '',
+      };
     });
 
-    const orderedEntries = [
-      ...categoryOrder.map((category) => [category, categoryTotals[category] ?? 0]),
-      ...Object.keys(categoryTotals)
-        .filter((category) => !categoryOrder.includes(category))
-        .map((category) => [category, categoryTotals[category]]),
-    ];
+    renderDonut(reportPipelineChart, pipelineSegments, {
+      centerLabel: numberFormatter.format(totalProjects),
+      centerHint: 'Proje',
+      valueFormatter: (segment) => `${numberFormatter.format(segment.value)} proje`,
+    });
+  }
 
-    reportCategoryList.innerHTML = orderedEntries
-      .map(([category, count]) => {
-        const share = totalProjects ? Math.round((count / totalProjects) * 100) : 0;
-        return `
-          <li>
-            <span class="report-list__label">${escapeHtml(category)}</span>
-            <span class="report-list__value">${numberFormatter.format(count)} proje • %${share}</span>
-          </li>
-        `;
-      })
-      .join('');
+  if (reportStatusList) {
+    if (!totalProjects) {
+      reportStatusList.innerHTML = '<li class="muted">Henüz raporlanacak proje yok.</li>';
+    } else {
+      const statusItems = [
+        {
+          label: 'Ödeme Alınan Projeler',
+          count: paidProjectCount,
+          share: formatShare(paidProjectCount, totalProjects),
+          detail: paidHousingTotal ? `${numberFormatter.format(paidHousingTotal)} konut` : '',
+        },
+        {
+          label: 'Teklif Verilen Projeler',
+          count: offerProjectCount,
+          share: formatShare(offerProjectCount, totalProjects),
+          detail: offerHousingTotal ? `${numberFormatter.format(offerHousingTotal)} konut` : '',
+        },
+        {
+          label: 'Temas Kurulan Projeler',
+          count: visitedProjectCount,
+          share: formatShare(visitedProjectCount, totalProjects),
+          detail: visitedHousingTotal ? `${numberFormatter.format(visitedHousingTotal)} konut` : '',
+        },
+        {
+          label: 'Devam Eden Projeler',
+          count: progressTotals.ongoing?.count ?? 0,
+          share: formatShare(progressTotals.ongoing?.count ?? 0, totalProjects),
+          detail: progressTotals.ongoing?.housing
+            ? `${numberFormatter.format(progressTotals.ongoing.housing)} konut`
+            : '',
+        },
+        {
+          label: 'Tamamlanan Projeler',
+          count: progressTotals.completed?.count ?? 0,
+          share: formatShare(progressTotals.completed?.count ?? 0, totalProjects),
+          detail: progressTotals.completed?.housing
+            ? `${numberFormatter.format(progressTotals.completed.housing)} konut`
+            : '',
+        },
+        {
+          label: 'Beklemede / Planlama',
+          count: progressTotals.pending?.count ?? 0,
+          share: formatShare(progressTotals.pending?.count ?? 0, totalProjects),
+          detail: progressTotals.pending?.housing
+            ? `${numberFormatter.format(progressTotals.pending.housing)} konut`
+            : '',
+        },
+        {
+          label: 'Takipte Kalan Projeler',
+          count: progressTotals.tracking?.count ?? 0,
+          share: formatShare(progressTotals.tracking?.count ?? 0, totalProjects),
+          detail: progressTotals.tracking?.housing
+            ? `${numberFormatter.format(progressTotals.tracking.housing)} konut`
+            : '',
+        },
+      ];
+
+      reportStatusList.innerHTML = statusItems
+        .map(
+          (item) => `
+            <li>
+              <span class="report-list__label">${escapeHtml(item.label)}</span>
+              <span class="report-list__value">
+                <span>${numberFormatter.format(item.count)} proje</span>
+                <span>${escapeHtml(item.share)}</span>
+              </span>
+              ${
+                item.detail
+                  ? `<span class="report-list__detail">${escapeHtml(item.detail)}</span>`
+                  : ''
+              }
+            </li>
+          `,
+        )
+        .join('');
+    }
+  }
+
+  if (reportFirmChart) {
+    if (!contractorStats.size) {
+      reportFirmChart.innerHTML =
+        '<p class="muted">Projelere ait inşaat firması bilgisi bulunmuyor.</p>';
+    } else {
+      const contractorEntries = Array.from(contractorStats.entries()).map(([name, stats]) => ({
+        label: name,
+        value: stats.count,
+        housing: stats.housing,
+      }));
+
+      contractorEntries.sort((a, b) => {
+        if (b.value !== a.value) return b.value - a.value;
+        return b.housing - a.housing;
+      });
+
+      const assignedTotal = contractorEntries.reduce((sum, entry) => sum + entry.value, 0);
+      const topSegments = contractorEntries.slice(0, 5).map((entry, index) => ({
+        label: entry.label,
+        value: entry.value,
+        housing: entry.housing,
+        color:
+          REPORT_FIRM_COLORS[index % REPORT_FIRM_COLORS.length] ?? REPORT_CATEGORY_COLORS.Diğer,
+        detail: entry.housing ? `${numberFormatter.format(entry.housing)} konut` : '',
+      }));
+
+      if (contractorEntries.length > 5) {
+        const otherEntries = contractorEntries.slice(5);
+        const otherValue = otherEntries.reduce((sum, entry) => sum + entry.value, 0);
+        const otherHousing = otherEntries.reduce((sum, entry) => sum + entry.housing, 0);
+        topSegments.push({
+          label: 'Diğer Firmalar',
+          value: otherValue,
+          housing: otherHousing,
+          color: REPORT_CATEGORY_COLORS.Diğer,
+          detail: otherHousing ? `${numberFormatter.format(otherHousing)} konut` : '',
+        });
+      }
+
+      renderDonut(reportFirmChart, topSegments, {
+        centerLabel: numberFormatter.format(assignedTotal),
+        centerHint: 'Proje',
+        valueFormatter: (segment) => `${numberFormatter.format(segment.value)} proje`,
+      });
+    }
+  }
+
+  if (reportCategoryList) {
+    if (!categoryStats.size) {
+      reportCategoryList.innerHTML = '<li class="muted">Kategori bilgisi bulunan proje yok.</li>';
+    } else {
+      const categoryOrder = ['TOKİ', 'Emlak Konut', 'Özel', 'Kamu'];
+      const orderedEntries = [
+        ...categoryOrder
+          .filter((category) => categoryStats.has(category))
+          .map((category) => [category, categoryStats.get(category)]),
+        ...Array.from(categoryStats.entries()).filter(
+          ([category]) => !categoryOrder.includes(category),
+        ),
+      ];
+
+      reportCategoryList.innerHTML = orderedEntries
+        .map(([category, stats]) => {
+          const projectShare = formatShare(stats.projects, totalProjects);
+          const housingShare = formatShare(stats.housing, totalHousingUnits);
+          const detail = `${numberFormatter.format(stats.housing)} konut${
+            totalHousingUnits ? ` • ${housingShare}` : ''
+          }`;
+          return `
+            <li>
+              <span class="report-list__label">${escapeHtml(category)}</span>
+              <span class="report-list__value">
+                <span>${numberFormatter.format(stats.projects)} proje</span>
+                <span>${escapeHtml(projectShare)}</span>
+              </span>
+              <span class="report-list__detail">${escapeHtml(detail)}</span>
+            </li>
+          `;
+        })
+        .join('');
+    }
   }
 
   if (reportChannelList) {
