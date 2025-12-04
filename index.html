@@ -11,33 +11,9 @@
     href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
     rel="stylesheet"
   />
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    crossorigin=""
-  />
 </head>
 <body>
-  <div class="auth-screen" id="authScreen">
-    <form class="login-card" id="loginForm">
-      <h2>Panel Girişi</h2>
-      <p class="muted">Devam etmek için kullanıcı adınızı ve şifrenizi girin.</p>
-      <label>
-        <span>Kullanıcı Adı</span>
-        <input type="email" name="username" placeholder="ornek@kaldeboru.com" required />
-      </label>
-      <label>
-        <span>Şifre</span>
-        <input type="password" name="password" placeholder="••••••" required />
-      </label>
-      <p class="login-card__feedback" id="authError" aria-live="polite"></p>
-      <div class="form-actions">
-        <button type="submit" class="primary-btn">Giriş Yap</button>
-      </div>
-    </form>
-  </div>
-
-  <header class="topbar requires-auth">
+  <header class="topbar">
     <div class="brand">
       <span class="brand__logo">K</span>
       <div class="brand__text">
@@ -52,23 +28,11 @@
       <button class="nav-link" data-target="mechanical-detail">Mekanik Firma Detay</button>
       <button class="nav-link" data-target="assignments">Atamalar</button>
       <button class="nav-link" data-target="requests">Talepler</button>
-      <button class="nav-link" data-target="project-maps">Haritalar</button>
-      <button class="nav-link" data-target="reporting">Raporlama</button>
     </nav>
-    <div class="topbar__actions">
-      <button class="ghost-btn" id="userAdminBtn">Kullanıcı Yönetimi</button>
-      <button class="primary-btn" id="newRecordBtn">Yeni Kayıt Ekle</button>
-      <div class="user-summary">
-        <div class="user-summary__info">
-          <span class="user-summary__name" id="currentUserName"></span>
-          <span class="user-summary__role" id="currentUserRole"></span>
-        </div>
-        <button class="ghost-btn ghost-btn--compact" id="logoutBtn">Çıkış</button>
-      </div>
-    </div>
+    <button class="primary-btn" id="newRecordBtn">Yeni Kayıt Ekle</button>
   </header>
 
-  <main class="requires-auth">
+  <main>
     <section class="dashboard" data-view="project-pool">
       <div class="search-panel">
         <label>
@@ -111,19 +75,9 @@
       <section class="table-wrapper">
         <header class="section-header">
           <h2>Proje Veri Havuzu</h2>
-          <div class="section-header__controls">
-            <div class="legend">
-              <span><span class="legend-dot direct"></span>Doğrudan</span>
-              <span><span class="legend-dot dealer"></span>Bayi</span>
-            </div>
-            <div class="table-toolbar">
-              <div class="table-toolbar__buttons">
-                <input type="file" id="projectImportInput" accept=".xlsx,.xls" hidden />
-                <button class="ghost-btn" id="projectImportBtn">Excel'den İçe Aktar</button>
-                <button class="ghost-btn" id="projectExportBtn">Excel'e Aktar</button>
-              </div>
-              <span class="table-feedback" id="projectImportFeedback" aria-live="polite"></span>
-            </div>
+          <div class="legend">
+            <span><span class="legend-dot direct"></span>Doğrudan</span>
+            <span><span class="legend-dot dealer"></span>Bayi</span>
           </div>
         </header>
         <table>
@@ -134,8 +88,6 @@
               <th>Son İşlem Tarihi</th>
               <th>Kategori</th>
               <th>İl</th>
-              <th>İlçe</th>
-              <th>Konut Sayısı</th>
               <th>Proje Adı</th>
               <th>Yüklenici</th>
               <th>Mekanik Yüklenici</th>
@@ -190,19 +142,7 @@
               </label>
               <label>
                 <span>İl</span>
-                <select name="projectCity" required>
-                  <option value="">İl Seçin</option>
-                </select>
-              </label>
-              <label>
-                <span>İlçe</span>
-                <select name="projectDistrict" required disabled>
-                  <option value="">Önce il seçin</option>
-                </select>
-              </label>
-              <label>
-                <span>Konut Sayısı</span>
-                <input type="number" name="housingUnits" min="0" step="1" inputmode="numeric" />
+                <input type="text" name="projectCity" required />
               </label>
               <label>
                 <span>Eklenme Tarihi</span>
@@ -226,7 +166,7 @@
               </label>
               <label>
                 <span>Proje Sorumlusu</span>
-                <select name="manager" data-staff-select data-allow-empty="true"></select>
+                <input type="text" name="manager" />
               </label>
               <label>
                 <span>Bağlantı Türü</span>
@@ -398,20 +338,12 @@
               <input type="text" name="company" required />
             </label>
             <label>
-              <span>Ürün Grubu</span>
-              <input type="text" name="productGroup" />
-            </label>
-            <label>
               <span>Yetkili</span>
               <input type="text" name="contact" required />
             </label>
             <label>
               <span>İletişim Bilgisi</span>
               <input type="text" name="phone" />
-            </label>
-            <label>
-              <span>Teklif Tutarı (₺)</span>
-              <input type="number" name="amount" min="0" step="0.01" />
             </label>
             <label class="full-width">
               <span>Teklif Notları</span>
@@ -440,10 +372,6 @@
               <input type="text" name="company" required />
             </label>
             <label>
-              <span>Ürün Grubu</span>
-              <input type="text" name="productGroup" />
-            </label>
-            <label>
               <span>Tahsilat Tutarı (₺)</span>
               <input type="number" name="amount" min="0" step="0.01" required />
             </label>
@@ -469,44 +397,6 @@
       <header class="section-header">
         <h2>İnşaat Firması Detay</h2>
       </header>
-      <section class="form-card firm-create-card">
-        <header>
-          <h3>Yeni İnşaat Firması Ekle</h3>
-          <p class="muted">Projeden bağımsız yeni bir inşaat firması kaydedin.</p>
-        </header>
-        <form class="firm-create-form" id="constructionFirmForm" data-firm-type="construction">
-          <div class="form-grid">
-            <label>
-              <span>Firma Adı</span>
-              <input type="text" name="firmName" placeholder="Firma adı" required />
-            </label>
-            <label>
-              <span>İl</span>
-              <input type="text" name="firmCity" placeholder="İl" />
-            </label>
-            <label>
-              <span>Yetkili</span>
-              <input type="text" name="firmContact" placeholder="Yetkili kişi" />
-            </label>
-            <label>
-              <span>Çalışma Durumu</span>
-              <input type="text" name="firmStatus" placeholder="Çalışma durumu" />
-            </label>
-            <label>
-              <span>Sorumlu Personel</span>
-              <select name="firmOwner" data-staff-select data-allow-empty="true"></select>
-            </label>
-            <label class="full-width">
-              <span>Notlar</span>
-              <textarea name="firmNotes" rows="2" placeholder="Ek notlar"></textarea>
-            </label>
-          </div>
-          <div class="form-actions form-actions--with-feedback">
-            <span class="form-feedback" data-role="feedback"></span>
-            <button type="submit" class="primary-btn">Firmayı Kaydet</button>
-          </div>
-        </form>
-      </section>
       <table>
         <thead>
           <tr>
@@ -527,44 +417,6 @@
       <header class="section-header">
         <h2>Mekanik Firma Detay</h2>
       </header>
-      <section class="form-card firm-create-card">
-        <header>
-          <h3>Yeni Mekanik Firması Ekle</h3>
-          <p class="muted">Projeden bağımsız yeni bir mekanik firması kaydedin.</p>
-        </header>
-        <form class="firm-create-form" id="mechanicalFirmForm" data-firm-type="mechanical">
-          <div class="form-grid">
-            <label>
-              <span>Firma Adı</span>
-              <input type="text" name="firmName" placeholder="Firma adı" required />
-            </label>
-            <label>
-              <span>İl</span>
-              <input type="text" name="firmCity" placeholder="İl" />
-            </label>
-            <label>
-              <span>Yetkili</span>
-              <input type="text" name="firmContact" placeholder="Yetkili kişi" />
-            </label>
-            <label>
-              <span>Çalışma Durumu</span>
-              <input type="text" name="firmStatus" placeholder="Çalışma durumu" />
-            </label>
-            <label>
-              <span>Sorumlu Personel</span>
-              <select name="firmOwner" data-staff-select data-allow-empty="true"></select>
-            </label>
-            <label class="full-width">
-              <span>Notlar</span>
-              <textarea name="firmNotes" rows="2" placeholder="Ek notlar"></textarea>
-            </label>
-          </div>
-          <div class="form-actions form-actions--with-feedback">
-            <span class="form-feedback" data-role="feedback"></span>
-            <button type="submit" class="primary-btn">Firmayı Kaydet</button>
-          </div>
-        </form>
-      </section>
       <table>
         <thead>
           <tr>
@@ -604,115 +456,7 @@
         <h2>Talep ve Teklif Raporları</h2>
         <p class="muted">Güncel teklif, tahsilat ve ziyaret taleplerini buradan takip edin.</p>
       </header>
-      <div class="request-layout">
-        <form class="form-card request-form" id="requestForm">
-          <input type="hidden" name="requestId" />
-          <label>
-            <span>Talep Başlığı</span>
-            <input type="text" name="title" placeholder="Talep açıklaması" required />
-          </label>
-          <label>
-            <span>Sorumlu Kişi</span>
-            <select name="owner" data-staff-select data-allow-empty="false"></select>
-          </label>
-          <label>
-            <span>Termin Tarihi</span>
-            <input type="date" name="due" />
-          </label>
-          <label>
-            <span>Durum</span>
-            <select name="status" id="requestStatusField">
-              <option value="Beklemede">Beklemede</option>
-              <option value="Onay Sürecinde">Onay Sürecinde</option>
-              <option value="Tamamlandı">Tamamlandı</option>
-              <option value="İptal Edildi">İptal Edildi</option>
-            </select>
-          </label>
-          <label class="full-width">
-            <span>Açıklama</span>
-            <textarea name="notes" rows="2" placeholder="Talep ile ilgili kısa not"></textarea>
-          </label>
-          <label class="full-width request-form__upload">
-            <span>Belge Ekle</span>
-            <input type="file" name="attachments" id="requestAttachments" multiple />
-            <small class="input-hint">Birden fazla dosya seçebilirsiniz.</small>
-          </label>
-          <div class="form-actions">
-            <button type="submit" class="primary-btn" data-role="submit">Kaydet</button>
-            <button type="button" class="ghost-btn" data-action="cancel-request">İptal</button>
-          </div>
-        </form>
       <div class="request-grid" id="requestGrid"></div>
-    </div>
-  </section>
-
-    <section class="dashboard hidden" data-view="project-maps">
-      <header class="section-header">
-        <div>
-          <h2>Türkiye Proje Haritası</h2>
-          <p class="muted">Kayıtlı projelerin konumlarını harita üzerinde görüntüleyin.</p>
-        </div>
-      </header>
-      <div class="map-controls">
-        <div class="map-controls__note">
-          <strong>Streets Map Görünümü</strong>
-          <p>Harita OpenStreetMap verileriyle otomatik olarak yüklenir, ek anahtar gerektirmez.</p>
-        </div>
-      </div>
-      <div class="map-layout">
-        <div class="map-wrapper">
-          <div
-            id="projectMap"
-            class="map-canvas"
-            role="application"
-            aria-label="Proje Haritası"
-          ></div>
-        </div>
-        <aside class="map-sidebar">
-          <h3>Haritadaki Projeler</h3>
-          <p class="muted">Listeden bir projeye tıklayarak haritada konumuna odaklanın.</p>
-          <ul class="map-project-list" id="mapProjectList"></ul>
-        </aside>
-      </div>
-    </section>
-
-    <section class="dashboard hidden" data-view="reporting">
-      <header class="section-header">
-        <div>
-          <h2>Raporlama</h2>
-          <p class="muted">Proje havuzuna ait temel metrikler ve özetleri inceleyin.</p>
-        </div>
-      </header>
-      <div class="report-summary" id="reportSummaryCards"></div>
-      <div class="report-panels report-panels--wide">
-        <article class="report-panel report-panel--wide">
-          <h3>Konut Sayısı Bazlı Kategori Dağılımı</h3>
-          <div class="chart-container" id="reportCategoryHousingChart"></div>
-        </article>
-        <article class="report-panel">
-          <h3>Satış ve Süreç Durumları</h3>
-          <div class="chart-container" id="reportPipelineChart"></div>
-          <ul class="report-list report-list--stacked" id="reportStatusList"></ul>
-        </article>
-        <article class="report-panel">
-          <h3>İnşaat Firması Payları</h3>
-          <div class="chart-container" id="reportFirmChart"></div>
-        </article>
-      </div>
-      <div class="report-panels">
-        <article class="report-panel">
-          <h3>Kategori Dağılımı</h3>
-          <ul class="report-list" id="reportCategoryList"></ul>
-        </article>
-        <article class="report-panel">
-          <h3>İlk 5 İl</h3>
-          <ul class="report-list" id="reportCityList"></ul>
-        </article>
-        <article class="report-panel">
-          <h3>Satış Kanalı</h3>
-          <ul class="report-list" id="reportChannelList"></ul>
-        </article>
-      </div>
     </section>
   </main>
 
@@ -722,69 +466,15 @@
       <h2>Yeni Kayıt Oluştur</h2>
       <p>Eklemek istediğiniz kayıt tipini seçin:</p>
       <div class="modal__actions">
-        <button class="ghost-btn" data-quick-action="project">Proje Ekle</button>
-        <button class="ghost-btn" data-quick-action="construction">İnşaat Firma Ekle</button>
-        <button class="ghost-btn" data-quick-action="mechanical">Mekanik Firma Ekle</button>
-        <button class="ghost-btn" data-quick-action="visit-offer">Ziyaret / Teklif Ekle</button>
+        <button class="ghost-btn">Proje Kaydı</button>
+        <button class="ghost-btn">İnşaat Firması</button>
+        <button class="ghost-btn">Mekanik Firması</button>
+        <button class="ghost-btn">Ziyaret/Teklif</button>
       </div>
       <p class="muted">Detaylı kayıt formları için proje bilgi alanını kullanabilirsiniz.</p>
     </div>
   </div>
 
-  <div class="modal hidden" id="userModal">
-    <div class="modal__content modal__content--wide">
-      <button class="modal__close" data-action="close-user-modal">×</button>
-      <h2>Kullanıcı Yönetimi</h2>
-      <p class="muted">Yeni kullanıcı oluşturabilir, rollerini güncelleyebilir ve şifrelerini belirleyebilirsiniz.</p>
-      <p class="modal-feedback" id="userModalFeedback" aria-live="polite"></p>
-      <section class="user-admin__section">
-        <h3>Yeni Kullanıcı Oluştur</h3>
-        <form class="user-form" id="userForm">
-          <div class="form-grid">
-            <label>
-              <span>Ad Soyad</span>
-              <input type="text" name="fullName" placeholder="Ad Soyad" required />
-            </label>
-            <label>
-              <span>Kullanıcı Adı (E-posta)</span>
-              <input type="email" name="email" placeholder="ornek@kaldeboru.com" required />
-            </label>
-            <label>
-              <span>Şifre</span>
-              <input type="password" name="password" placeholder="En az 6 karakter" required />
-            </label>
-            <label>
-              <span>Rol</span>
-              <select name="role">
-                <option value="standard">Standart</option>
-                <option value="manager">Yönetici</option>
-              </select>
-            </label>
-          </div>
-          <div class="form-actions form-actions--with-feedback">
-            <span class="form-feedback" data-role="feedback"></span>
-            <button type="submit" class="primary-btn" data-role="submit">Kullanıcıyı Kaydet</button>
-          </div>
-        </form>
-      </section>
-      <section class="user-admin__section">
-        <h3>Mevcut Kullanıcılar</h3>
-        <table class="user-table">
-          <thead>
-            <tr>
-              <th>Kullanıcı</th>
-              <th>Rol</th>
-              <th>İşlemler</th>
-            </tr>
-          </thead>
-          <tbody id="userTableBody"></tbody>
-        </table>
-      </section>
-    </div>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="app.js"></script>
 </body>
 </html>
